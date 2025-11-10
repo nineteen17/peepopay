@@ -16,6 +16,7 @@ Next.js 16 application for managing services, bookings, and Stripe Connect onboa
 - 📱 **Responsive Design** - Mobile-first with shadcn/ui
 - 🎨 **Modern UI** - shadcn/ui components with Tailwind CSS
 - 🌙 **Dark Mode Ready** - Theme support built-in
+- 🔒 **Type Safety** - Auto-generated TypeScript types from API schemas
 
 ## 📦 Tech Stack
 
@@ -77,7 +78,8 @@ packages/dashboard/
 │   ├── api.ts                # API client
 │   └── auth.ts               # Auth helpers
 │
-├── types/                    # TypeScript type definitions
+├── types/
+│   └── api.ts                # Auto-generated API types (DO NOT EDIT)
 ├── public/                   # Static assets
 ├── next.config.js
 ├── tailwind.config.ts
@@ -142,6 +144,39 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 ```
 
 **Note:** Variables prefixed with `NEXT_PUBLIC_` are exposed to the browser.
+
+## 🔒 Type Safety
+
+The dashboard uses **auto-generated TypeScript types** from the API's Zod schemas:
+
+```typescript
+// Import auto-generated types
+import type { Service, NewService, Booking } from '@/types/api';
+
+// ✅ Compile-time type safety
+const [services, setServices] = useState<Service[]>([]);
+
+// ✅ TypeScript enforces correct fields
+const createService = async (data: NewService) => {
+  const response = await fetch('/api/services', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  // TypeScript error if fields are wrong!
+};
+
+// ✅ Auto-complete for API responses
+const booking: Booking = await response.json();
+booking.bookingDate; // TypeScript knows this exists!
+```
+
+**Benefits:**
+- Catch API mismatches at compile-time
+- Auto-complete for API fields
+- Refactor with confidence
+- Types stay in sync automatically
+
+See [TYPE_SAFETY_SETUP.md](../../TYPE_SAFETY_SETUP.md) for more details.
 
 ## 📱 Pages & Features
 
