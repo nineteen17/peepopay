@@ -1,0 +1,49 @@
+http:
+  middlewares:
+    # Security headers
+    security-headers:
+      headers:
+        frameDeny: true
+        browserXssFilter: true
+        contentTypeNosniff: true
+        sslRedirect: true
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+
+    # Rate limiting
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50
+        period: 1m
+
+    # CORS for widget
+    cors-widget:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        accessControlAllowOriginList:
+          - "*"
+        accessControlMaxAge: 3600
+        addVaryHeader: true
+
+  routers:
+    # Widget router (served as static files)
+    widget:
+      rule: "PathPrefix(`/widget`)"
+      service: widget
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - cors-widget
+
+  services:
+    widget:
+      loadBalancer:
+        servers:
+          - url: "http://localhost:5173"
