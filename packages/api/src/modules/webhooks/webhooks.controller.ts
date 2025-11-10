@@ -1,8 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { WebhooksService } from './webhooks.service.js';
+import { QueueService } from '../../lib/queue.js';
 
 const router = Router();
 const webhooksService = new WebhooksService();
+const queueService = new QueueService();
 
 /**
  * Webhooks Controller
@@ -17,9 +19,10 @@ router.post('/stripe', async (req: Request, res: Response) => {
     // Verify and construct webhook event
     const event = webhooksService.verifyStripeWebhook(req.body, sig);
 
-    // Process the event
-    await webhooksService.processStripeEvent(event);
+    // Publish event to queue for async processing
+    await queueService.publishStripeWebhook(event.id, event.type, event.data);
 
+    // Acknowledge receipt immediately
     res.json({ received: true });
   } catch (err: any) {
     console.error('Webhook error:', err.message);

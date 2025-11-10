@@ -7,6 +7,7 @@ import { auth } from './lib/auth.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { initRedis, closeRedis } from './lib/redis.js';
 import { initRabbitMQ, closeRabbitMQ } from './lib/queue.js';
+import { performHealthCheck } from './lib/health.js';
 
 // Module Controllers
 import authController from './modules/auth/auth.controller.js';
@@ -46,13 +47,19 @@ app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    environment: config.nodeEnv,
-  });
+// Health checks
+app.get('/health', async (req, res) => {
+  try {
+    const health = await performHealthCheck();
+    const statusCode = health.status === 'healthy' ? 200 : 503;
+    res.status(statusCode).json(health);
+  } catch (error) {
+    res.status(503).json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      error: 'Health check failed',
+    });
+  }
 });
 
 // API routes (module controllers)

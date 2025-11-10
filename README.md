@@ -6,12 +6,15 @@ PeepoPay enables tradies to accept booking deposits through an embeddable widget
 
 ## ✨ Features
 
-- 🎯 **Embeddable Booking Widget** - React/Vite widget for seamless customer bookings
+- 🎯 **Embeddable Booking Widget** - React 19/Vite widget for seamless customer bookings
 - 💰 **Stripe Connect Integration** - Direct-to-tradie payments with automatic platform fees
-- 📊 **Tradie Dashboard** - Next.js dashboard for managing services and bookings
+- 📊 **Tradie Dashboard** - Next.js 16 dashboard for managing services and bookings
 - 🔐 **Better Auth** - Secure authentication with Google OAuth + Email/Password
 - ⚡ **Real-time Availability** - Manage availability and blocked time slots
-- 📧 **Automated Notifications** - Email/SMS notifications for bookings
+- 📧 **Automated Notifications** - Email confirmations via RabbitMQ worker service
+- 🚀 **Message Queue** - RabbitMQ for reliable async job processing with retries
+- 💾 **Redis Caching** - Fast service listings and session management
+- 🏥 **Health Monitoring** - Comprehensive health checks for all infrastructure services
 - 🐳 **Docker Ready** - Complete containerization with Docker Swarm support
 - 🔒 **Production Ready** - Traefik reverse proxy with SSL/TLS support
 
@@ -35,15 +38,23 @@ PeepoPay enables tradies to accept booking deposits through an embeddable widget
      │                   │
      └───────┬───────────┘
              ▼
-      ┌──────────────┐
-      │  API Server  │
-      │  (Express)   │
-      └──────┬───────┘
-             │
-      ┌──────▼──────┐
-      │  PostgreSQL │
-      │   Supabase  │
-      └─────────────┘
+      ┌──────────────┐        ┌──────────────┐
+      │  API Server  │◄───────│    Worker    │
+      │  (Express)   │        │   Service    │
+      └──────┬───────┘        └──────┬───────┘
+             │                       │
+       ┌─────┴───────┬───────────────┘
+       │             │
+       ▼             ▼
+┌────────────┐  ┌──────────┐
+│ PostgreSQL │  │ RabbitMQ │
+│  Database  │  │  Queue   │
+└────────────┘  └──────────┘
+       │             │
+       ▼             ▼
+   ┌────────────────────┐
+   │    Redis Cache     │
+   └────────────────────┘
 ```
 
 ## 📦 Project Structure
@@ -121,9 +132,10 @@ peepopay/
 npm run dev
 
 # Start individual services
-npm run dev:api
-npm run dev:dashboard
-npm run dev:widget
+npm run dev:api        # API server on port 4000
+npm run dev:worker     # Worker service (from packages/api)
+npm run dev:dashboard  # Dashboard on port 3000
+npm run dev:widget     # Widget on port 5173
 
 # Build all packages
 npm run build
@@ -147,14 +159,16 @@ npm run db:studio      # Open Drizzle Studio
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| **Frontend** | Next.js 14 | Dashboard application |
-| **Widget** | React + Vite | Embeddable booking widget |
+| **Frontend** | Next.js 16 | Dashboard application |
+| **Widget** | React 19 + Vite | Embeddable booking widget |
 | **Backend** | Node.js + Express | REST API server |
-| **Database** | PostgreSQL | Primary data store |
+| **Worker** | Node.js | Async job processing |
+| **Database** | PostgreSQL 16 | Primary data store |
 | **ORM** | Drizzle ORM | Type-safe database access |
 | **Auth** | Better Auth | Authentication & sessions |
 | **Payments** | Stripe Connect | Payment processing |
-| **Cache** | Redis | Session & data caching |
+| **Queue** | RabbitMQ | Message queue with retries |
+| **Cache** | Redis | Service listings & sessions |
 | **Proxy** | Traefik | Reverse proxy & SSL |
 | **Container** | Docker | Containerization |
 | **Orchestration** | Docker Swarm | Production deployment |
@@ -188,16 +202,64 @@ Comprehensive documentation is available in the [`Docs/`](./Docs) directory:
 - **Traefik**: Infrastructure (rate limiting, SSL, routing)
 - **Node.js**: Application (auth, validation, business logic)
 
+#### Worker Service & Message Queue
+🛠️ **Async job processing with RabbitMQ**
+- **Worker Service**: Separate Node.js process consuming from queues
+- **Email Notifications**: Booking confirmations sent via queue
+- **Stripe Webhooks**: Processed asynchronously for reliability
+- **Retry Logic**: Failed jobs retry 3 times with exponential backoff
+- **Dead Letter Queue**: Failed jobs stored for manual review
+- **Queue Types**:
+  - `email_notifications` - General email sending
+  - `booking_confirmations` - Booking confirmation emails
+  - `stripe_webhooks` - Stripe event processing
+  - `failed_jobs` - Dead letter queue for failures
+
+#### Health Monitoring
+🏥 **Comprehensive health checks**
+- `/health` endpoint returns 200 (healthy) or 503 (unhealthy)
+- Monitors: Database connectivity, Redis connection, RabbitMQ status
+- Response includes individual service status with response times
+- Used by Docker health checks and load balancers
+
+#### Redis Caching
+💾 **Smart caching for performance**
+- **Service Listings**: 10-minute TTL for public service data
+- **Session Storage**: User sessions and authentication tokens
+- **Cache Invalidation**: Automatic on service create/update/delete
+
 ## 🐳 Docker Deployment
 
-### Development
+PeepoPay includes three Docker configurations for different environments:
+
+### Local Development (`docker-compose.dev.yml`)
+
+Hot-reload development environment with all infrastructure services:
 
 ```bash
-# Start development services (PostgreSQL + Redis)
+# Start all services (PostgreSQL, Redis, RabbitMQ, API, Worker, Dashboard, Widget)
 docker-compose -f docker-compose.dev.yml up -d
+
+# View logs
+docker-compose -f docker-compose.dev.yml logs -f
+
+# Access services
+# - API: http://localhost:4000
+# - Dashboard: http://localhost:3000
+# - Widget: http://localhost:5173
+# - RabbitMQ Management: http://localhost:15672 (admin/admin)
+# - Drizzle Studio: http://localhost:4983
 ```
 
-### Production
+**Features:**
+- Volume mounts for hot-reload
+- All 7 services running
+- RabbitMQ management UI
+- Health checks for all services
+
+### Production Testing (`docker-compose.yml`)
+
+Production-like environment for local testing with Traefik:
 
 ```bash
 # Build and start all services
@@ -209,6 +271,42 @@ docker-compose logs -f
 # Stop services
 docker-compose down
 ```
+
+**Features:**
+- Production builds for all services
+- Traefik reverse proxy with routing
+- SSL/TLS termination
+- Health monitoring
+
+### Docker Swarm (`docker-stack.yml`)
+
+Production deployment with high availability:
+
+```bash
+# Initialize swarm (one-time)
+docker swarm init
+
+# Create secrets
+echo "your-db-password" | docker secret create postgres_password -
+echo "your-stripe-key" | docker secret create stripe_secret_key -
+
+# Deploy stack
+docker stack deploy -c docker-stack.yml peepopay
+
+# Monitor services
+docker stack services peepopay
+docker service logs -f peepopay_api
+```
+
+**Features:**
+- API: 2 replicas with rolling updates
+- Worker: 1 replica with restart policy
+- Dashboard: 2 replicas
+- Widget: Served via nginx with caching
+- Overlay networking
+- Docker secrets for sensitive data
+- Resource limits and placement constraints
+- Traefik with Let's Encrypt SSL
 
 ### Traefik Dashboard
 
@@ -222,6 +320,12 @@ Access Traefik dashboard at http://localhost:8080
 # Database
 DATABASE_URL=postgresql://user:pass@localhost:5432/peepopay
 
+# Redis
+REDIS_URL=redis://localhost:6379
+
+# RabbitMQ
+RABBITMQ_URL=amqp://localhost:5672
+
 # Stripe
 STRIPE_SECRET_KEY=sk_live_...
 STRIPE_PUBLISHABLE_KEY=pk_live_...
@@ -231,6 +335,12 @@ STRIPE_CLIENT_ID=ca_...
 # Better Auth
 BETTER_AUTH_SECRET=your-secret-key
 JWT_SECRET=your-jwt-secret
+
+# Email (SMTP)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
 
 # Google OAuth (optional)
 GOOGLE_CLIENT_ID=...
@@ -252,9 +362,12 @@ npm run test --workspace=@peepopay/api
 ## 📈 Monitoring & Logging
 
 - **API Logs**: `docker-compose logs -f api`
+- **Worker Logs**: `docker-compose logs -f worker`
 - **Database Logs**: `docker-compose logs -f postgres`
+- **RabbitMQ Management**: http://localhost:15672 (admin/admin)
 - **Traefik Dashboard**: http://localhost:8080
 - **Drizzle Studio**: `npm run db:studio` (from packages/api)
+- **Health Check**: `curl http://localhost:4000/health`
 
 ## 🚢 Production Deployment
 
@@ -265,12 +378,29 @@ npm run test --workspace=@peepopay/api
    docker swarm init
    ```
 
-2. **Deploy Stack**
+2. **Create Docker Secrets**
    ```bash
-   docker stack deploy -c docker-compose.yml peepopay
+   echo "your-postgres-password" | docker secret create postgres_password -
+   echo "your-stripe-secret" | docker secret create stripe_secret_key -
+   echo "your-better-auth-secret" | docker secret create better_auth_secret -
    ```
 
-3. **Configure DNS**
+3. **Deploy Stack**
+   ```bash
+   docker stack deploy -c docker-stack.yml peepopay
+   ```
+
+4. **Monitor Deployment**
+   ```bash
+   # View all services
+   docker stack services peepopay
+
+   # View logs
+   docker service logs -f peepopay_api
+   docker service logs -f peepopay_worker
+   ```
+
+5. **Configure DNS**
    - Point your domain to your server
    - Traefik will automatically provision SSL certificates via Let's Encrypt
 

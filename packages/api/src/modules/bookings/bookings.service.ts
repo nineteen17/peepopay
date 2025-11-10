@@ -3,6 +3,7 @@ import { bookings, services, insertBookingSchema, type NewBooking, type BookingS
 import { eq, and, gte, lte } from 'drizzle-orm';
 import { AppError } from '../../middleware/errorHandler.js';
 import { createPaymentIntent } from '../../lib/stripe.js';
+import { QueueService } from '../../lib/queue.js';
 
 export interface BookingFilters {
   status?: string;
@@ -180,6 +181,29 @@ export class BookingsService {
       })
       .where(eq(bookings.stripePaymentIntentId, paymentIntentId))
       .returning();
+
+    // Get full booking details with service info
+    const booking = await db.query.bookings.findFirst({
+      where: eq(bookings.id, updated.id),
+      with: {
+        service: true,
+      },
+    });
+
+    if (booking && booking.service) {
+      // Publish booking confirmation email to queue
+      const queueService = new QueueService();
+      await queueService.publishBookingConfirmation(
+        booking.id,
+        booking.customerEmail,
+        {
+          serviceName: booking.service.name,
+          scheduledFor: booking.bookingDate,
+          duration: booking.service.duration,
+          price: booking.depositAmount,
+        }
+      );
+    }
 
     return updated;
   }
