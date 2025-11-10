@@ -1,0 +1,32 @@
+{
+  "name": "peepopay",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production-grade booking and payment platform for tradies",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:dashboard\" \"npm run dev:widget\"",
+    "dev:api": "npm run dev --workspace=@peepopay/api",
+    "dev:dashboard": "npm run dev --workspace=@peepopay/dashboard",
+    "dev:widget": "npm run dev --workspace=@peepopay/widget",
+    "build": "npm run build --workspaces",
+    "build:api": "npm run build --workspace=@peepopay/api",
+    "build:dashboard": "npm run build --workspace=@peepopay/dashboard",
+    "build:widget": "npm run build --workspace=@peepopay/widget",
+    "lint": "npm run lint --workspaces",
+    "test": "npm run test --workspaces",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}
