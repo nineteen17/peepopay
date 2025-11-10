@@ -1,13 +1,20 @@
 import { db } from '../../db/index.js';
-import { services, insertServiceSchema, type NewService } from '../../db/schema/index.js';
+import { services, users, insertServiceSchema, type NewService } from '../../db/schema/index.js';
 import { eq, and } from 'drizzle-orm';
 import { AppError } from '../../middleware/errorHandler.js';
+import { CacheService } from '../../lib/redis.js';
 
 /**
  * Services Service
  * Handles service-related business logic and database operations
  */
 export class ServicesService {
+  private cacheService: CacheService;
+
+  constructor() {
+    this.cacheService = new CacheService();
+  }
+
   /**
    * Get all services for a user
    */
@@ -20,8 +27,18 @@ export class ServicesService {
 
   /**
    * Get active services for a user by slug (public)
+   * Cached for 10 minutes
    */
   async getServicesByUserSlug(slug: string) {
+    const cacheKey = `services:user:${slug}`;
+
+    // Try to get from cache
+    const cached = await this.cacheService.get<any[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    // Fetch from database
     const userServices = await db.query.services.findMany({
       where: eq(services.isActive, true),
       with: {
@@ -30,7 +47,12 @@ export class ServicesService {
     });
 
     // Filter by user slug
-    return userServices.filter((s) => s.user.slug === slug);
+    const filtered = userServices.filter((s) => s.user.slug === slug);
+
+    // Cache for 10 minutes
+    await this.cacheService.set(cacheKey, filtered, 600);
+
+    return filtered;
   }
 
   /**
@@ -62,6 +84,15 @@ export class ServicesService {
 
     const [newService] = await db.insert(services).values(validatedData).returning();
 
+    // Get user to clear cache
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+
+    if (user?.slug) {
+      await this.cacheService.del(`services:user:${user.slug}`);
+    }
+
     return newService;
   }
 
@@ -86,6 +117,15 @@ export class ServicesService {
       .where(eq(services.id, id))
       .returning();
 
+    // Get user to clear cache
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+
+    if (user?.slug) {
+      await this.cacheService.del(`services:user:${user.slug}`);
+    }
+
     return updated;
   }
 
@@ -103,6 +143,15 @@ export class ServicesService {
     }
 
     await db.delete(services).where(eq(services.id, id));
+
+    // Get user to clear cache
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+
+    if (user?.slug) {
+      await this.cacheService.del(`services:user:${user.slug}`);
+    }
 
     return { success: true, message: 'Service deleted successfully' };
   }

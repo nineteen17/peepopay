@@ -1,3 +1,7 @@
+# Docker Compose for LOCAL DEVELOPMENT
+# Usage: docker-compose -f docker-compose.dev.yml up
+# Runs all services locally with hot-reload and volume mounts
+
 version: '3.8'
 
 services:
@@ -14,6 +18,13 @@ services:
       - "5432:5432"
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - peepopay-dev
 
   # Redis Cache
   redis:
@@ -24,7 +35,154 @@ services:
       - "6379:6379"
     volumes:
       - redis_dev_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - peepopay-dev
+
+  # RabbitMQ Message Queue
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: peepopay-rabbitmq-dev
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    ports:
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq_dev_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - peepopay-dev
+
+  # API Server (with hot-reload)
+  api:
+    build:
+      context: ./packages/api
+      dockerfile: Dockerfile
+      target: builder  # Use builder stage for dev
+    container_name: peepopay-api-dev
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/peepopay
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672
+      - API_PORT=4000
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./packages/api:/app
+      - /app/node_modules
+      - /app/dist
+    command: npm run dev
+    networks:
+      - peepopay-dev
+
+  # Worker Service (processes async jobs)
+  worker:
+    build:
+      context: ./packages/api
+      dockerfile: Dockerfile
+      target: builder
+    container_name: peepopay-worker-dev
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/peepopay
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./packages/api:/app
+      - /app/node_modules
+      - /app/dist
+    command: npm run dev:worker
+    networks:
+      - peepopay-dev
+
+  # Dashboard (Next.js with hot-reload)
+  dashboard:
+    build:
+      context: ./packages/dashboard
+      dockerfile: Dockerfile
+      target: builder
+    container_name: peepopay-dashboard-dev
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:4000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    volumes:
+      - ./packages/dashboard:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+    networks:
+      - peepopay-dev
+
+  # Widget (Vite with hot-reload)
+  widget:
+    build:
+      context: ./packages/widget
+      dockerfile: Dockerfile
+      target: builder
+    container_name: peepopay-widget-dev
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:4000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+    volumes:
+      - ./packages/widget:/app
+      - /app/node_modules
+      - /app/dist
+    command: npm run dev -- --host 0.0.0.0
+    networks:
+      - peepopay-dev
 
 volumes:
   postgres_dev_data:
   redis_dev_data:
+  rabbitmq_dev_data:
+
+networks:
+  peepopay-dev:
+    name: peepopay-dev-network
+    driver: bridge

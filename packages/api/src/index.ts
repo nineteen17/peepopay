@@ -5,6 +5,9 @@ import compression from 'compression';
 import { config } from './config/index.js';
 import { auth } from './lib/auth.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
+import { initRedis, closeRedis } from './lib/redis.js';
+import { initRabbitMQ, closeRabbitMQ } from './lib/queue.js';
+import { performHealthCheck } from './lib/health.js';
 
 // Module Controllers
 import authController from './modules/auth/auth.controller.js';
@@ -14,6 +17,18 @@ import usersController from './modules/users/users.controller.js';
 import webhooksController from './modules/webhooks/webhooks.controller.js';
 
 const app: Express = express();
+
+// Initialize infrastructure services
+async function initializeServices() {
+  try {
+    await initRedis();
+    await initRabbitMQ();
+    console.log('✅ All infrastructure services initialized');
+  } catch (error) {
+    console.error('❌ Failed to initialize services:', error);
+    process.exit(1);
+  }
+}
 
 // Security middleware
 app.use(helmet());
@@ -32,13 +47,19 @@ app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    environment: config.nodeEnv,
-  });
+// Health checks
+app.get('/health', async (req, res) => {
+  try {
+    const health = await performHealthCheck();
+    const statusCode = health.status === 'healthy' ? 200 : 503;
+    res.status(statusCode).json(health);
+  } catch (error) {
+    res.status(503).json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      error: 'Health check failed',
+    });
+  }
 });
 
 // API routes (module controllers)
@@ -57,8 +78,12 @@ app.use(errorHandler);
 // Start server
 const PORT = config.port;
 
-app.listen(PORT, () => {
-  console.log(`
+async function startServer() {
+  // Initialize services first
+  await initializeServices();
+
+  app.listen(PORT, () => {
+    console.log(`
   ╔═══════════════════════════════════════╗
   ║                                       ║
   ║   🚀 PeepoPay API Server              ║
@@ -68,18 +93,32 @@ app.listen(PORT, () => {
   ║   URL: ${config.apiUrl.padEnd(31)} ║
   ║                                       ║
   ╚═══════════════════════════════════════╝
-  `);
-});
+    `);
+  });
+}
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received: closing HTTP server');
-  process.exit(0);
-});
+async function gracefulShutdown(signal: string) {
+  console.log(`\n${signal} signal received: closing services gracefully`);
 
-process.on('SIGINT', () => {
-  console.log('SIGINT signal received: closing HTTP server');
-  process.exit(0);
+  try {
+    await closeRedis();
+    await closeRabbitMQ();
+    console.log('✅ All services closed gracefully');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Error during shutdown:', error);
+    process.exit(1);
+  }
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Start the server
+startServer().catch((error) => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
 });
 
 export default app;

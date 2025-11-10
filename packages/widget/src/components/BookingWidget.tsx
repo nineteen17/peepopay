@@ -11,9 +11,9 @@ interface Service {
   id: string;
   name: string;
   description: string;
-  price: number;
+  depositAmount: number;
   duration: number;
-  active: boolean;
+  isActive: boolean;
 }
 
 interface BookingWidgetProps {
@@ -90,11 +90,13 @@ export default function BookingWidget({ userSlug }: BookingWidgetProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           serviceId: selectedService.id,
-          scheduledFor: selectedDateTime.toISOString(),
+          bookingDate: selectedDateTime.toISOString(),
+          duration: selectedService.duration,
+          depositAmount: selectedService.depositAmount,
           customerName: formData.customerName,
           customerEmail: formData.customerEmail,
-          customerPhone: formData.customerPhone,
-          notes: formData.notes,
+          customerPhone: formData.customerPhone || undefined,
+          notes: formData.notes || undefined,
         }),
       });
 
@@ -104,19 +106,20 @@ export default function BookingWidget({ userSlug }: BookingWidgetProps) {
 
       const { clientSecret } = await response.json();
 
-      // Confirm payment
-      const cardElement = elements.getElement(CardElement);
-      if (!cardElement) throw new Error('Card element not found');
-
-      const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: {
-          card: cardElement,
-          billing_details: {
-            name: formData.customerName,
-            email: formData.customerEmail,
-            phone: formData.customerPhone,
+      // Confirm payment with updated Stripe API
+      const { error: stripeError, paymentIntent } = await stripe.confirmPayment({
+        clientSecret,
+        elements,
+        confirmParams: {
+          payment_method_data: {
+            billing_details: {
+              name: formData.customerName,
+              email: formData.customerEmail,
+              phone: formData.customerPhone || undefined,
+            },
           },
         },
+        redirect: 'if_required',
       });
 
       if (stripeError) {
@@ -240,7 +243,7 @@ export default function BookingWidget({ userSlug }: BookingWidgetProps) {
           <div className="text-sm text-gray-600 mt-1">{selectedService.description}</div>
           <div className="flex items-center gap-4 mt-2 text-sm text-gray-700">
             <span>{selectedService.duration} minutes</span>
-            <span className="font-bold text-blue-600">${(selectedService.price / 100).toFixed(2)}</span>
+            <span className="font-bold text-blue-600">${(selectedService.depositAmount / 100).toFixed(2)}</span>
           </div>
         </div>
       )}
@@ -315,7 +318,7 @@ export default function BookingWidget({ userSlug }: BookingWidgetProps) {
             <div className="flex justify-between items-center mb-6">
               <span className="text-gray-700 font-medium">Total Amount:</span>
               <span className="text-3xl font-bold text-blue-600">
-                ${selectedService && (selectedService.price / 100).toFixed(2)}
+                ${selectedService && (selectedService.depositAmount / 100).toFixed(2)}
               </span>
             </div>
 

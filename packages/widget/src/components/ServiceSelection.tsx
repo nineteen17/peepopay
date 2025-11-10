@@ -4,9 +4,9 @@ interface Service {
   id: string;
   name: string;
   description: string;
-  price: number;
+  depositAmount: number;
   duration: number;
-  active: boolean;
+  isActive: boolean;
 }
 
 interface ServiceSelectionProps {
@@ -39,7 +39,7 @@ export default function ServiceSelection({ services, onSelect, loading }: Servic
         </div>
       ) : (
         <div className="space-y-4">
-          {services.filter(s => s.active).map((service) => (
+          {services.filter(s => s.isActive).map((service) => (
             <button
               key={service.id}
               onClick={() => onSelect(service)}
@@ -51,7 +51,7 @@ export default function ServiceSelection({ services, onSelect, loading }: Servic
                 </h3>
                 <div className="text-right">
                   <div className="text-2xl font-bold text-blue-600">
-                    ${(service.price / 100).toFixed(2)}
+                    ${(service.depositAmount / 100).toFixed(2)}
                   </div>
                 </div>
               </div>
