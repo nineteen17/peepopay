@@ -6,11 +6,12 @@ import { config } from './config/index.js';
 import { auth } from './lib/auth.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 
-// Routes
-import servicesRouter from './routes/services.js';
-import bookingsRouter from './routes/bookings.js';
-import usersRouter from './routes/users.js';
-import webhooksRouter from './routes/webhooks.js';
+// Module Controllers
+import authController from './modules/auth/auth.controller.js';
+import servicesController from './modules/services/services.controller.js';
+import bookingsController from './modules/bookings/bookings.controller.js';
+import usersController from './modules/users/users.controller.js';
+import webhooksController from './modules/webhooks/webhooks.controller.js';
 
 const app: Express = express();
 
@@ -40,16 +41,12 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Better Auth routes
-app.all('/api/auth/*', (req, res) => {
-  return auth.handler(req, res);
-});
-
-// API routes
-app.use('/api/services', servicesRouter);
-app.use('/api/bookings', bookingsRouter);
-app.use('/api/users', usersRouter);
-app.use('/api/webhooks', webhooksRouter);
+// API routes (module controllers)
+app.use('/api/auth', authController);
+app.use('/api/services', servicesController);
+app.use('/api/bookings', bookingsController);
+app.use('/api/users', usersController);
+app.use('/api/webhooks', webhooksController);
 
 // 404 handler
 app.use(notFound);

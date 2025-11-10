@@ -334,6 +334,156 @@ async function requireOwnership(req, res, next) {
 }
 ```
 
+## API Architecture Pattern
+
+### Controller/Service Architecture
+
+PeepoPay API follows a clean **controller/service architecture** for maintainability and separation of concerns.
+
+#### Directory Structure
+
+```
+packages/api/src/
+├── config/           # Configuration files
+├── db/              # Database schemas and migrations
+├── modules/         # Feature modules (controller + service)
+│   ├── auth/
+│   │   ├── auth.controller.ts
+│   │   └── auth.service.ts
+│   ├── users/
+│   │   ├── users.controller.ts
+│   │   └── users.service.ts
+│   ├── services/
+│   │   ├── services.controller.ts
+│   │   └── services.service.ts
+│   ├── bookings/
+│   │   ├── bookings.controller.ts
+│   │   └── bookings.service.ts
+│   └── webhooks/
+│       ├── webhooks.controller.ts
+│       └── webhooks.service.ts
+├── middleware/      # Shared middleware
+├── lib/            # Shared utilities (Stripe, auth helpers)
+└── index.ts        # Express app setup
+```
+
+#### Layer Responsibilities
+
+**Controllers** (`*.controller.ts`):
+- Handle HTTP request/response cycle
+- Define routes and middleware
+- Validate request data
+- Call service methods
+- Format responses
+- Handle HTTP-specific logic
+
+**Services** (`*.service.ts`):
+- Contain business logic
+- Execute database queries
+- Interact with external APIs
+- Process data transformations
+- Return data or throw errors
+- Re-usable across controllers
+
+#### Example Implementation
+
+**users.controller.ts**
+```typescript
+import { Router } from 'express';
+import { requireAuth } from '../../middleware/auth';
+import { UsersService } from './users.service';
+
+const router = Router();
+const usersService = new UsersService();
+
+// GET /api/users/me
+router.get('/me', requireAuth, async (req, res, next) => {
+  try {
+    const user = await usersService.getUserById(req.user!.id);
+    res.json({ user });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /api/users/me
+router.put('/me', requireAuth, async (req, res, next) => {
+  try {
+    const user = await usersService.updateUser(req.user!.id, req.body);
+    res.json({ user });
+  } catch (error) {
+    next(error);
+  }
+});
+
+export default router;
+```
+
+**users.service.ts**
+```typescript
+import { db } from '../../db';
+import { users } from '../../db/schema';
+import { eq } from 'drizzle-orm';
+import { AppError } from '../../middleware/errorHandler';
+
+export class UsersService {
+  async getUserById(id: string) {
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, id),
+    });
+
+    if (!user) {
+      throw new AppError(404, 'User not found');
+    }
+
+    // Remove sensitive data
+    const { passwordHash, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+  }
+
+  async updateUser(id: string, data: Partial<User>) {
+    const [updated] = await db
+      .update(users)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+
+    const { passwordHash, ...userWithoutPassword } = updated;
+    return userWithoutPassword;
+  }
+
+  async getUserByEmail(email: string) {
+    return await db.query.users.findFirst({
+      where: eq(users.email, email),
+    });
+  }
+}
+```
+
+#### Benefits of This Pattern
+
+✅ **Separation of Concerns**: HTTP logic separate from business logic
+✅ **Testability**: Services can be tested without HTTP mocking
+✅ **Reusability**: Services can be called from multiple controllers
+✅ **Maintainability**: Clear structure, easy to find code
+✅ **Scalability**: Easy to add new features following same pattern
+✅ **Type Safety**: Full TypeScript support throughout
+
+#### Module Organization
+
+Each module is **self-contained**:
+- Groups related functionality
+- Clear boundaries between features
+- Easy to understand and modify
+- Can be extracted to microservices later
+
+Example modules:
+- **auth**: Authentication, login, signup, session management
+- **users**: User profile, settings, Stripe onboarding
+- **services**: Service CRUD operations (tradie's offerings)
+- **bookings**: Booking creation, management, cancellation
+- **webhooks**: Stripe webhook handlers
+
 ## Error Handling
 
 ### Error Flow
