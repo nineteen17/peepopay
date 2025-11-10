@@ -14,6 +14,8 @@ Express.js backend with PostgreSQL, Redis, RabbitMQ, and Stripe Connect integrat
 - 🏥 **Health Checks** - Comprehensive monitoring of all services
 - 🛠️ **Worker Service** - Separate process for email and webhook processing
 - 🐳 **Docker Ready** - Multi-stage builds with health checks
+- 🔒 **Type Safety** - Zod schemas with auto-generated OpenAPI specs
+- 📖 **API Documentation** - Interactive Swagger UI for testing and exploration
 
 ## 📦 Architecture
 
@@ -68,13 +70,16 @@ Express.js backend with PostgreSQL, Redis, RabbitMQ, and Stripe Connect integrat
 packages/api/
 ├── src/
 │   ├── db/
-│   │   ├── schema/          # Drizzle ORM schemas
+│   │   ├── schema/          # Drizzle ORM schemas (Zod-based)
 │   │   │   ├── users.ts
 │   │   │   ├── services.ts
 │   │   │   ├── bookings.ts
 │   │   │   └── availability.ts
 │   │   ├── index.ts         # Database connection
 │   │   └── migrate.ts       # Migration runner
+│   │
+│   ├── openapi/
+│   │   └── generator.ts     # OpenAPI spec generator from Zod schemas
 │   │
 │   ├── modules/
 │   │   ├── auth/            # Authentication
@@ -100,6 +105,7 @@ packages/api/
 │   ├── index.ts             # API server entry point
 │   └── worker.ts            # Worker service entry point
 │
+├── openapi.json             # Auto-generated OpenAPI 3.0 spec
 ├── Dockerfile               # Production build
 ├── package.json
 ├── tsconfig.json
@@ -146,6 +152,9 @@ npm run db:studio
 ### Building
 
 ```bash
+# Generate OpenAPI spec (automatically runs before build)
+npm run generate:openapi
+
 # Compile TypeScript
 npm run build
 
@@ -155,6 +164,85 @@ npm start
 # Start production worker
 npm run start:worker
 ```
+
+## 🔒 Type Safety & API Documentation
+
+### Zod Schemas
+
+All database schemas use **Zod** for validation and type inference:
+
+```typescript
+// packages/api/src/db/schema/services.ts
+import { pgTable, uuid, text, integer, boolean, timestamp } from 'drizzle-orm/pg-core';
+import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
+
+export const services = pgTable('services', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull(),
+  name: text('name').notNull(),
+  description: text('description'),
+  depositAmount: integer('deposit_amount').notNull(),
+  duration: integer('duration').notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+  // ... more fields
+});
+
+// Auto-generated Zod schemas
+export const insertServiceSchema = createInsertSchema(services);
+export const selectServiceSchema = createSelectSchema(services);
+```
+
+### OpenAPI Generation
+
+OpenAPI 3.0 specs are **automatically generated** from Zod schemas:
+
+```bash
+# Generate OpenAPI spec
+npm run generate:openapi
+
+# Output: packages/api/openapi.json
+```
+
+The generator creates comprehensive API documentation including:
+- All endpoints with request/response schemas
+- Authentication requirements
+- Status codes and error responses
+- Type-safe schemas from Zod
+
+### Swagger UI
+
+**Interactive API documentation** is available at `/api-docs`:
+
+```bash
+# Start API server
+npm run dev
+
+# Open browser
+http://localhost:4000/api-docs
+```
+
+**Features:**
+- Test API endpoints directly from browser
+- View request/response schemas
+- Authenticate with Bearer tokens
+- Always up-to-date with code
+
+### Type Sync to Frontends
+
+Types are automatically synced to Dashboard and Widget:
+
+```bash
+# From root directory
+npm run sync-types
+
+# This will:
+# 1. Generate OpenAPI spec from Zod schemas
+# 2. Generate TypeScript types
+# 3. Copy to Dashboard and Widget
+# 4. Validate consistency
+```
+
+See [TYPE_SAFETY_SETUP.md](../../TYPE_SAFETY_SETUP.md) for details.
 
 ## 🔌 API Endpoints
 

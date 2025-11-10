@@ -10,6 +10,7 @@ React 19 + Vite static widget for seamless customer bookings with Stripe payment
 - 💳 **Stripe Elements** - Secure payment processing with Stripe Connect
 - 📅 **Date/Time Picker** - Weekly calendar with time slot selection
 - 📱 **Responsive Design** - Mobile-first with Tailwind CSS
+- 🔒 **Type Safety** - Auto-generated TypeScript types from API schemas
 - ⚡ **Vite Build** - Lightning-fast development and optimized production builds
 - 🐳 **Docker Ready** - Nginx-based production deployment
 - 🎨 **Customizable** - Tailwind CSS with custom color schemes
@@ -50,6 +51,9 @@ packages/widget/
 │   │   ├── ServiceSelection.tsx # Step 1: Choose service
 │   │   ├── DateTimePicker.tsx   # Step 2: Pick date/time
 │   │   └── CustomerForm.tsx     # Step 3: Customer details
+│   │
+│   ├── types/
+│   │   └── api.ts               # Auto-generated API types (DO NOT EDIT)
 │   │
 │   ├── App.tsx                  # Stripe provider wrapper
 │   ├── main.tsx                 # Entry point
@@ -120,6 +124,35 @@ VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
 ```
 
 **Important:** All environment variables must be prefixed with `VITE_` to be accessible in the browser.
+
+## 🔒 Type Safety
+
+The widget uses **auto-generated TypeScript types** from the API's Zod schemas:
+
+```typescript
+// Import auto-generated types
+import type { Service, NewBooking } from '../types/api';
+
+// ✅ Compile-time type safety
+const [services, setServices] = useState<Service[]>([]);
+
+// ✅ TypeScript enforces correct fields
+const booking: NewBooking = {
+  serviceId: selectedService.id,
+  bookingDate: selectedDateTime.toISOString(),
+  customerName: formData.customerName,
+  customerEmail: formData.customerEmail,
+  // TypeScript error if fields are wrong!
+};
+```
+
+**Benefits:**
+- Catch API mismatches at compile-time
+- Auto-complete for API fields
+- Never ship broken integrations
+- Types stay in sync automatically
+
+See [TYPE_SAFETY_SETUP.md](../../TYPE_SAFETY_SETUP.md) for more details.
 
 ## 📱 Component Breakdown
 
