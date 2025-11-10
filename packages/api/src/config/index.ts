@@ -35,6 +35,9 @@ export const config = {
   // Redis
   redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
 
+  // RabbitMQ
+  rabbitmqUrl: process.env.RABBITMQ_URL || 'amqp://localhost:5672',
+
   // Email
   email: {
     host: process.env.SMTP_HOST,
