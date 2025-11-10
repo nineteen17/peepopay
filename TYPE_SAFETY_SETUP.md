@@ -1,10 +1,10 @@
 # Type Safety Setup Guide
 
-Complete guide for setting up auto-synced type safety across API, Dashboard, and Widget.
+Complete guide for automatic type safety across API, Dashboard, and Widget.
 
 ## 🎯 Overview
 
-This setup provides **compile-time type safety** across all packages without monorepo dependencies. Types are automatically generated from API Zod schemas and synced to frontends.
+This setup provides **compile-time type safety** across all packages without monorepo dependencies. Types are **automatically generated and synced** whenever you build or start the API server.
 
 ## 📦 Architecture
 
@@ -33,13 +33,10 @@ This setup provides **compile-time type safety** across all packages without mon
 ### 1. Install Dependencies
 
 ```bash
-# Root dependencies
-npm install -D tsx@^4.7.0 openapi-typescript@^6.7.3
-
-# API dependencies
+# API package dependencies (where the magic happens)
 cd packages/api
 npm install @asteasolutions/zod-to-openapi@^7.0.0 swagger-ui-express@^5.0.0
-npm install -D @types/swagger-ui-express@^4.1.6
+npm install -D @types/swagger-ui-express@^4.1.6 openapi-typescript@^6.7.3
 ```
 
 **Note:** If npm registry is blocked, you can install these later. All implementation files are already created.
@@ -47,8 +44,11 @@ npm install -D @types/swagger-ui-express@^4.1.6
 ### 2. Verify Installation
 
 ```bash
+# From API directory
+cd packages/api
+
 # Check if tsx is available
-tsx --version
+npx tsx --version
 
 # Check if openapi-typescript is available
 npx openapi-typescript --version
@@ -56,37 +56,36 @@ npx openapi-typescript --version
 
 ## 🔄 Usage
 
-### Generate OpenAPI Spec
+### Automatic Type Sync
+
+Types sync **automatically** when you start or build the API:
 
 ```bash
 # From API directory
 cd packages/api
-npm run generate:openapi
 
-# Output: packages/api/openapi.json
+# Development mode (syncs types on start)
+npm run dev
+
+# Production build (syncs types before compilation)
+npm run build
 ```
 
-### Sync Types to Frontends
+**What happens automatically:**
+1. ✅ Generate OpenAPI spec from Zod schemas → `openapi.json`
+2. ✅ Generate TypeScript types from OpenAPI → `.generated/api-types.ts`
+3. ✅ Copy types to Dashboard → `packages/dashboard/src/types/api.ts`
+4. ✅ Copy types to Widget → `packages/widget/src/types/api.ts`
+5. ✅ Create checksums for validation
+
+### Manual Type Sync (Optional)
+
+If you need to sync types without starting the server:
 
 ```bash
-# From root directory
+# From API directory
+cd packages/api
 npm run sync-types
-
-# This will:
-# 1. Generate OpenAPI spec from Zod schemas
-# 2. Generate TypeScript types from OpenAPI
-# 3. Copy types to Dashboard (src/types/api.ts)
-# 4. Copy types to Widget (src/types/api.ts)
-# 5. Create checksum for validation
-```
-
-### Validate Types
-
-```bash
-# Check if types are in sync
-npm run validate-types
-
-# Use in pre-commit hooks
 ```
 
 ## 📝 Development Workflow
@@ -104,14 +103,26 @@ export const services = pgTable('services', {
 });
 ```
 
-### 2. Sync Types
+### 2. Start API (Types Sync Automatically)
 
 ```bash
-# From root
-npm run sync-types
+# From API directory
+cd packages/api
+npm run dev
+
+# 🔄 Types automatically sync to Dashboard and Widget!
 ```
 
-### 3. Use in Widget
+### 3. Pull Updated Types (Dashboard/Widget Developers)
+
+```bash
+# In your frontend workspace
+git pull
+
+# TypeScript immediately sees the new types
+```
+
+### 4. Use in Widget
 
 ```typescript
 // packages/widget/src/components/BookingWidget.tsx
@@ -211,30 +222,18 @@ OpenAPI spec is generated before TypeScript compilation.
 
 ### Pre-commit Hook (Recommended)
 
-```json
-// package.json
-{
-  "husky": {
-    "hooks": {
-      "pre-commit": "npm run validate-types"
-    }
-  }
-}
-```
-
-Prevents committing out-of-sync types.
+**Note:** Pre-commit validation is not needed with auto-sync since types are always regenerated when the API runs. Optionally, you could add a CI check to ensure Dashboard/Widget developers have pulled the latest types.
 
 ## 📁 Generated Files
 
 ### Location
 
 ```
-.generated/
-├── api-types.ts          # Master generated types
-└── checksum.json         # Validation checksum
-
 packages/api/
-└── openapi.json          # OpenAPI 3.0 specification
+├── openapi.json          # OpenAPI 3.0 specification
+└── .generated/
+    ├── api-types.ts      # Master generated types
+    └── checksum.json     # Validation checksum
 
 packages/dashboard/src/types/
 └── api.ts                # Auto-synced types (DO NOT EDIT)
@@ -254,7 +253,8 @@ Generated files include warnings:
  * Source: packages/api/openapi.json
  * Generated: 2025-11-10T12:00:00.000Z
  *
- * To update: npm run sync-types
+ * Types automatically sync when the API starts or builds.
+ * To manually update: cd packages/api && npm run sync-types
  */
 ```
 
@@ -263,7 +263,11 @@ Generated files include warnings:
 ### Types Out of Sync
 
 ```bash
-# Error: Types are out of sync!
+# If types seem stale, restart the API (auto-syncs)
+cd packages/api
+npm run dev
+
+# Or manually sync
 npm run sync-types
 ```
 
@@ -297,10 +301,11 @@ rm -rf packages/*/tsconfig.tsbuildinfo
 ls -la packages/widget/src/types/api.ts
 
 # Check checksum
-cat .generated/checksum.json
+cat packages/api/.generated/checksum.json
 
 # Force re-sync
-rm -rf .generated packages/*/src/types/api.ts
+cd packages/api
+rm -rf .generated ../dashboard/src/types/api.ts ../widget/src/types/api.ts
 npm run sync-types
 ```
 
@@ -359,13 +364,13 @@ const booking = {
 
 ## 🚀 Next Steps
 
-1. **Install dependencies** (when npm registry is accessible)
-2. **Run initial sync**: `npm run sync-types`
-3. **Update Widget** to use generated types
-4. **Update Dashboard** to use generated types
-5. **Add pre-commit hook** for validation
-6. **Test in development**
-7. **Document for team**
+1. **Install dependencies** in API package (when npm registry is accessible)
+2. **Start API** (types sync automatically): `cd packages/api && npm run dev`
+3. **Update Widget** to use generated types (already done!)
+4. **Update Dashboard** to use generated types (already done!)
+5. **Test in development** - verify types sync on API start
+6. **Document for team** - remind them to pull latest after API changes
+7. **Deploy** - types sync automatically on build
 
 ## ✅ Checklist
 
