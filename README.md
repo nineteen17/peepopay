@@ -15,6 +15,8 @@ PeepoPay enables tradies to accept booking deposits through an embeddable widget
 - 🚀 **Message Queue** - RabbitMQ for reliable async job processing with retries
 - 💾 **Redis Caching** - Fast service listings and session management
 - 🏥 **Health Monitoring** - Comprehensive health checks for all infrastructure services
+- 🔒 **Type Safety** - Auto-synced TypeScript types from Zod schemas across all packages
+- 📖 **API Documentation** - Interactive Swagger UI generated from OpenAPI spec
 - 🐳 **Docker Ready** - Complete containerization with Docker Swarm support
 - 🔒 **Production Ready** - Traefik reverse proxy with SSL/TLS support
 
@@ -153,6 +155,11 @@ npm run db:generate    # Generate Drizzle migrations
 npm run db:migrate     # Run migrations
 npm run db:push        # Push schema to database
 npm run db:studio      # Open Drizzle Studio
+
+# Type safety commands
+npm run sync-types     # Sync API types to frontends
+npm run validate-types # Validate types are in sync
+npm run generate:openapi # Generate OpenAPI spec
 ```
 
 ### Tech Stack
@@ -227,6 +234,36 @@ Comprehensive documentation is available in the [`Docs/`](./Docs) directory:
 - **Service Listings**: 10-minute TTL for public service data
 - **Session Storage**: User sessions and authentication tokens
 - **Cache Invalidation**: Automatic on service create/update/delete
+
+#### Type Safety & API Documentation
+🔒 **End-to-end type safety without monorepo complexity**
+- **Zod Schemas**: Single source of truth in API database schemas
+- **OpenAPI Generation**: Auto-generated from Zod schemas
+- **Type Sync**: Automatic propagation to Dashboard and Widget
+- **Compile-Time Validation**: TypeScript catches API mismatches before runtime
+- **Swagger UI**: Interactive API docs at `/api-docs`
+- **No Duplication**: Types generated, not manually maintained
+
+**Workflow:**
+```bash
+# 1. Update API schema
+vim packages/api/src/db/schema/services.ts
+
+# 2. Sync types to frontends
+npm run sync-types
+
+# 3. TypeScript enforces correct usage
+# Widget and Dashboard immediately see new fields with autocomplete
+```
+
+**Benefits:**
+- ✅ No field name mismatches (like `price` vs `depositAmount`)
+- ✅ IDE autocomplete for all API responses
+- ✅ Prevents 400 Bad Request errors at compile time
+- ✅ Independent deployments (no monorepo dependencies)
+- ✅ Always up-to-date documentation
+
+See [TYPE_SAFETY_SETUP.md](./TYPE_SAFETY_SETUP.md) for complete guide.
 
 ## 🐳 Docker Deployment
 

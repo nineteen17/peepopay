@@ -2,6 +2,9 @@ import express, { Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
+import swaggerUi from 'swagger-ui-express';
+import { readFileSync, existsSync } from 'fs';
+import { resolve } from 'path';
 import { config } from './config/index.js';
 import { auth } from './lib/auth.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
@@ -62,6 +65,27 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// API Documentation (Swagger UI)
+const openapiPath = resolve(process.cwd(), 'openapi.json');
+if (existsSync(openapiPath)) {
+  try {
+    const openapiSpec = JSON.parse(readFileSync(openapiPath, 'utf-8'));
+    app.use(
+      '/api-docs',
+      swaggerUi.serve,
+      swaggerUi.setup(openapiSpec, {
+        customCss: '.swagger-ui .topbar { display: none }',
+        customSiteTitle: 'PeepoPay API Documentation',
+      })
+    );
+    console.log('📚 API Documentation: /api-docs');
+  } catch (error) {
+    console.warn('⚠️  Failed to load OpenAPI spec, Swagger UI disabled');
+  }
+} else {
+  console.warn('⚠️  OpenAPI spec not found, run: npm run generate:openapi');
+}
+
 // API routes (module controllers)
 app.use('/api/auth', authController);
 app.use('/api/services', servicesController);
@@ -91,6 +115,7 @@ async function startServer() {
   ║   Environment: ${config.nodeEnv.padEnd(23)} ║
   ║   Port: ${PORT.toString().padEnd(30)} ║
   ║   URL: ${config.apiUrl.padEnd(31)} ║
+  ║   Docs: ${(config.apiUrl + '/api-docs').padEnd(27)} ║
   ║                                       ║
   ╚═══════════════════════════════════════╝
     `);
