@@ -11,7 +11,8 @@
  * 4. Copy types to Widget
  * 5. Validate checksums
  *
- * Usage: npm run sync-types
+ * Usage (from packages/api): npm run sync-types
+ * Auto-runs: After build and on dev server start
  */
 
 import { execSync } from 'child_process';
@@ -19,11 +20,12 @@ import { copyFileSync, readFileSync, writeFileSync, existsSync, mkdirSync } from
 import { resolve, dirname } from 'path';
 import { createHash } from 'crypto';
 
-const ROOT_DIR = resolve(__dirname, '..');
-const API_DIR = resolve(ROOT_DIR, 'packages/api');
+// Paths relative to packages/api/scripts/
+const API_DIR = resolve(__dirname, '..');
+const ROOT_DIR = resolve(API_DIR, '../..');
 const DASHBOARD_DIR = resolve(ROOT_DIR, 'packages/dashboard');
 const WIDGET_DIR = resolve(ROOT_DIR, 'packages/widget');
-const GENERATED_DIR = resolve(ROOT_DIR, '.generated');
+const GENERATED_DIR = resolve(API_DIR, '.generated');
 
 console.log('🔄 Syncing API types across packages...\n');
 

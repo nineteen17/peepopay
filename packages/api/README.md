@@ -105,6 +105,9 @@ packages/api/
 │   ├── index.ts             # API server entry point
 │   └── worker.ts            # Worker service entry point
 │
+├── scripts/
+│   └── sync-types.ts        # Auto-sync types to frontends
+│
 ├── openapi.json             # Auto-generated OpenAPI 3.0 spec
 ├── Dockerfile               # Production build
 ├── package.json
@@ -229,18 +232,27 @@ http://localhost:4000/api-docs
 
 ### Type Sync to Frontends
 
-Types are automatically synced to Dashboard and Widget:
+Types are **automatically synced** to Dashboard and Widget whenever you build or start the API:
 
 ```bash
-# From root directory
-npm run sync-types
+# Auto-syncs on dev server start
+npm run dev
 
-# This will:
-# 1. Generate OpenAPI spec from Zod schemas
-# 2. Generate TypeScript types
-# 3. Copy to Dashboard and Widget
-# 4. Validate consistency
+# Auto-syncs on production build
+npm run build
+
+# Manual sync (if needed)
+npm run sync-types
 ```
+
+**What happens automatically:**
+1. ✅ Generate OpenAPI spec from Zod schemas
+2. ✅ Generate TypeScript types from OpenAPI
+3. ✅ Copy types to Dashboard (`packages/dashboard/src/types/api.ts`)
+4. ✅ Copy types to Widget (`packages/widget/src/types/api.ts`)
+5. ✅ Generate checksums for validation
+
+**Dashboard/Widget developers:** Pull latest changes to get fresh API types after API updates.
 
 See [TYPE_SAFETY_SETUP.md](../../TYPE_SAFETY_SETUP.md) for details.
 

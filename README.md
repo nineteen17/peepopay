@@ -236,24 +236,29 @@ Comprehensive documentation is available in the [`Docs/`](./Docs) directory:
 - **Cache Invalidation**: Automatic on service create/update/delete
 
 #### Type Safety & API Documentation
-🔒 **End-to-end type safety without monorepo complexity**
+🔒 **End-to-end type safety with automatic synchronization**
 - **Zod Schemas**: Single source of truth in API database schemas
 - **OpenAPI Generation**: Auto-generated from Zod schemas
-- **Type Sync**: Automatic propagation to Dashboard and Widget
+- **Automatic Type Sync**: Types propagate to Dashboard and Widget on API build/dev
 - **Compile-Time Validation**: TypeScript catches API mismatches before runtime
 - **Swagger UI**: Interactive API docs at `/api-docs`
-- **No Duplication**: Types generated, not manually maintained
+- **No Manual Steps**: Everything happens automatically
 
-**Workflow:**
+**How It Works:**
 ```bash
 # 1. Update API schema
 vim packages/api/src/db/schema/services.ts
 
-# 2. Sync types to frontends
-npm run sync-types
+# 2. Start API (types sync automatically!)
+cd packages/api
+npm run dev    # or npm run build
 
-# 3. TypeScript enforces correct usage
-# Widget and Dashboard immediately see new fields with autocomplete
+# 3. Pull updated types in Dashboard/Widget
+cd packages/dashboard
+git pull  # Get the auto-synced types
+
+# 4. TypeScript enforces correct usage
+# IDE shows new fields with autocomplete immediately
 ```
 
 **Benefits:**
@@ -262,6 +267,7 @@ npm run sync-types
 - ✅ Prevents 400 Bad Request errors at compile time
 - ✅ Independent deployments (no monorepo dependencies)
 - ✅ Always up-to-date documentation
+- ✅ Zero manual sync steps
 
 See [TYPE_SAFETY_SETUP.md](./TYPE_SAFETY_SETUP.md) for complete guide.
 
