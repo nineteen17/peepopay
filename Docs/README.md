@@ -54,6 +54,9 @@ PeepoPay enables tradies to accept booking deposits through an embeddable widget
 - [Docker Swarm](./infrastructure/swarm.md) - Production orchestration
 - [CI/CD](./infrastructure/ci-cd.md) - GitHub Actions pipeline
 
+### Services
+- [Email Service](./services/email-service.md) - Resend + React Email integration
+
 ### Development
 - [Local Setup](./development/local-setup.md) - Getting started guide
 - [Testing Strategy](./development/testing-strategy.md) - Test approach

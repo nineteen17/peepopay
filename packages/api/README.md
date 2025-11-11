@@ -62,7 +62,7 @@ Express.js backend with PostgreSQL, Redis, RabbitMQ, and Stripe Connect integrat
 | **Queue** | RabbitMQ 3 |
 | **Auth** | Better Auth |
 | **Payments** | Stripe Connect |
-| **Email** | Nodemailer |
+| **Email** | Resend + React Email |
 
 ## 📁 Project Structure
 
@@ -335,11 +335,10 @@ STRIPE_PUBLISHABLE_KEY=pk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 STRIPE_CLIENT_ID=ca_...
 
-# Email (SMTP)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASSWORD=your-app-password
+# Email (Resend)
+RESEND_API_KEY=re_your_resend_api_key
+FROM_EMAIL=noreply@peepopay.com
+FROM_NAME=PeepoPay
 
 # Google OAuth (Optional)
 GOOGLE_CLIENT_ID=...
