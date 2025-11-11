@@ -1,21 +1,15 @@
 import dotenv from 'dotenv';
 import { initRedis, closeRedis } from './lib/redis.js';
 import { initRabbitMQ, closeRabbitMQ, consumeQueue, QUEUES } from './lib/queue.js';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
+import { render } from '@react-email/render';
 import { config } from './config/index.js';
+import { BookingConfirmationEmail, GenericNotificationEmail } from './emails/index.js';
 
 dotenv.config();
 
-// Email transporter
-const transporter = nodemailer.createTransporter({
-  host: config.email.host,
-  port: config.email.port,
-  secure: config.email.port === 465,
-  auth: config.email.user && config.email.password ? {
-    user: config.email.user,
-    pass: config.email.password,
-  } : undefined,
-});
+// Initialize Resend client
+const resend = new Resend(config.email.apiKey);
 
 // Email notification handler
 async function handleEmailNotification(message: any) {
@@ -24,14 +18,27 @@ async function handleEmailNotification(message: any) {
   console.log(`📧 Sending email to ${to}`);
 
   try {
-    await transporter.sendMail({
-      from: config.email.user || 'noreply@peepopay.com',
+    // Render the generic notification email template
+    const html = render(
+      GenericNotificationEmail({
+        subject,
+        body,
+        previewText: subject,
+      })
+    );
+
+    const result = await resend.emails.send({
+      from: `${config.email.fromName} <${config.email.fromEmail}>`,
       to,
       subject,
-      html: body,
+      html,
     });
 
-    console.log(`✅ Email sent successfully to ${to}`);
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+
+    console.log(`✅ Email sent successfully to ${to} (ID: ${result.data?.id})`);
   } catch (error) {
     console.error(`❌ Failed to send email to ${to}:`, error);
     throw error; // Will be retried or sent to dead letter queue
@@ -44,45 +51,37 @@ async function handleBookingConfirmation(message: any) {
 
   console.log(`📝 Processing booking confirmation for ${bookingId}`);
 
-  const emailBody = `
-    <html>
-      <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background-color: #3b82f6; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-          <h1 style="margin: 0;">Booking Confirmed! 🎉</h1>
-        </div>
-        <div style="border: 1px solid #e5e7eb; border-top: none; padding: 30px; border-radius: 0 0 8px 8px;">
-          <p style="font-size: 16px;">Hi there,</p>
-          <p style="font-size: 16px;">Your booking has been confirmed! Here are the details:</p>
+  try {
+    // Render the booking confirmation email template
+    const html = render(
+      BookingConfirmationEmail({
+        bookingId,
+        serviceName: details.serviceName,
+        duration: details.duration,
+        price: details.price,
+        customerEmail,
+        bookingDate: details.scheduledFor
+          ? new Date(details.scheduledFor).toLocaleString()
+          : undefined,
+      })
+    );
 
-          <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 10px 0;"><strong>Service:</strong> ${details.serviceName}</p>
-            <p style="margin: 10px 0;"><strong>Date & Time:</strong> ${new Date(details.scheduledFor).toLocaleString()}</p>
-            <p style="margin: 10px 0;"><strong>Duration:</strong> ${details.duration} minutes</p>
-            <p style="margin: 10px 0;"><strong>Price:</strong> $${(details.price / 100).toFixed(2)}</p>
-          </div>
+    const result = await resend.emails.send({
+      from: `${config.email.fromName} <${config.email.fromEmail}>`,
+      to: customerEmail,
+      subject: `Booking Confirmed - ${details.serviceName}`,
+      html,
+    });
 
-          <p style="font-size: 14px; color: #6b7280;">
-            If you need to make any changes or have questions, please contact the service provider directly.
-          </p>
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
 
-          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-
-          <p style="font-size: 12px; color: #9ca3af; text-align: center;">
-            PeepoPay - Simplifying bookings for tradies and customers
-          </p>
-        </div>
-      </body>
-    </html>
-  `;
-
-  await transporter.sendMail({
-    from: config.email.user || 'noreply@peepopay.com',
-    to: customerEmail,
-    subject: `Booking Confirmed - ${details.serviceName}`,
-    html: emailBody,
-  });
-
-  console.log(`✅ Booking confirmation sent for ${bookingId}`);
+    console.log(`✅ Booking confirmation sent for ${bookingId} (ID: ${result.data?.id})`);
+  } catch (error) {
+    console.error(`❌ Failed to send booking confirmation for ${bookingId}:`, error);
+    throw error; // Will be retried or sent to dead letter queue
+  }
 }
 
 // Stripe webhook handler

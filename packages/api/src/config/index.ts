@@ -38,12 +38,11 @@ export const config = {
   // RabbitMQ
   rabbitmqUrl: process.env.RABBITMQ_URL || 'amqp://localhost:5672',
 
-  // Email
+  // Email - Resend
   email: {
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    user: process.env.SMTP_USER,
-    password: process.env.SMTP_PASSWORD,
+    apiKey: process.env.RESEND_API_KEY!,
+    fromEmail: process.env.FROM_EMAIL || 'noreply@peepopay.com',
+    fromName: process.env.FROM_NAME || 'PeepoPay',
   },
 
   // CORS
@@ -66,6 +65,7 @@ const requiredEnvVars = [
   'STRIPE_PUBLISHABLE_KEY',
   'STRIPE_WEBHOOK_SECRET',
   'STRIPE_CLIENT_ID',
+  'RESEND_API_KEY',
 ];
 
 for (const envVar of requiredEnvVars) {
