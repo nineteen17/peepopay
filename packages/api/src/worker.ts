@@ -4,7 +4,14 @@ import { initRabbitMQ, closeRabbitMQ, consumeQueue, QUEUES } from './lib/queue.j
 import { Resend } from 'resend';
 import { render } from '@react-email/render';
 import { config } from './config/index.js';
-import { BookingConfirmationEmail, GenericNotificationEmail } from './emails/index.js';
+import {
+  BookingConfirmationEmail,
+  GenericNotificationEmail,
+  WelcomeEmail,
+  VerifyEmail,
+  PasswordResetEmail,
+  PasswordChangedEmail,
+} from './emails/index.js';
 
 dotenv.config();
 
@@ -84,6 +91,86 @@ async function handleBookingConfirmation(message: any) {
   }
 }
 
+// Auth email handler
+async function handleAuthEmail(message: any) {
+  const { type, to, data } = message;
+
+  console.log(`🔐 Processing auth email: ${type} to ${to}`);
+
+  try {
+    let html: string;
+    let subject: string;
+
+    switch (type) {
+      case 'welcome':
+        html = render(
+          WelcomeEmail({
+            userName: data.userName,
+            userEmail: to,
+            dashboardUrl: data.dashboardUrl || config.betterAuth.url,
+          })
+        );
+        subject = 'Welcome to PeepoPay! 🎉';
+        break;
+
+      case 'verification':
+        html = render(
+          VerifyEmail({
+            userName: data.userName,
+            verificationUrl: data.verificationUrl,
+            verificationCode: data.verificationCode,
+            expiresIn: data.expiresIn || '24 hours',
+          })
+        );
+        subject = 'Verify Your Email - PeepoPay';
+        break;
+
+      case 'password-reset':
+        html = render(
+          PasswordResetEmail({
+            userName: data.userName,
+            resetUrl: data.resetUrl,
+            resetCode: data.resetCode,
+            expiresIn: data.expiresIn || '1 hour',
+          })
+        );
+        subject = 'Reset Your Password - PeepoPay';
+        break;
+
+      case 'password-changed':
+        html = render(
+          PasswordChangedEmail({
+            userName: data.userName,
+            changedAt: data.changedAt,
+            ipAddress: data.ipAddress,
+            userAgent: data.userAgent,
+          })
+        );
+        subject = 'Your Password Has Been Changed - PeepoPay';
+        break;
+
+      default:
+        throw new Error(`Unknown auth email type: ${type}`);
+    }
+
+    const result = await resend.emails.send({
+      from: `${config.email.fromName} <${config.email.fromEmail}>`,
+      to,
+      subject,
+      html,
+    });
+
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+
+    console.log(`✅ Auth email sent: ${type} to ${to} (ID: ${result.data?.id})`);
+  } catch (error) {
+    console.error(`❌ Failed to send auth email (${type}) to ${to}:`, error);
+    throw error; // Will be retried or sent to dead letter queue
+  }
+}
+
 // Stripe webhook handler
 async function handleStripeWebhook(message: any) {
   const { eventId, eventType, data } = message;
@@ -142,6 +229,7 @@ async function startWorker() {
     // Start consuming queues
     await consumeQueue(QUEUES.EMAIL_NOTIFICATIONS, handleEmailNotification, { prefetch: 5 });
     await consumeQueue(QUEUES.BOOKING_CONFIRMATIONS, handleBookingConfirmation, { prefetch: 3 });
+    await consumeQueue(QUEUES.AUTH_EMAILS, handleAuthEmail, { prefetch: 5 });
     await consumeQueue(QUEUES.STRIPE_WEBHOOKS, handleStripeWebhook, { prefetch: 10 });
     await consumeQueue(QUEUES.FAILED_JOBS, handleFailedJob, { prefetch: 1 });
 

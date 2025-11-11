@@ -355,6 +355,7 @@ The worker service processes async jobs from RabbitMQ queues:
 |-------|---------|----------|
 | `email_notifications` | General email sending | 5 |
 | `booking_confirmations` | Booking confirmation emails | 3 |
+| `auth_emails` | Auth emails (welcome, verification, password reset) | 5 |
 | `stripe_webhooks` | Stripe event processing | 10 |
 | `failed_jobs` | Dead letter queue | 1 |
 
