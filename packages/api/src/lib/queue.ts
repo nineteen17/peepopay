@@ -8,6 +8,7 @@ export const QUEUES = {
   EMAIL_NOTIFICATIONS: 'email_notifications',
   BOOKING_CONFIRMATIONS: 'booking_confirmations',
   STRIPE_WEBHOOKS: 'stripe_webhooks',
+  AUTH_EMAILS: 'auth_emails', // Auth-related emails (welcome, verification, password reset)
   FAILED_JOBS: 'failed_jobs', // Dead letter queue
 } as const;
 
@@ -150,6 +151,19 @@ export class QueueService {
       eventType: event.type,
       data: event.data,
       receivedAt: new Date().toISOString(),
+    });
+  }
+
+  async publishAuthEmail(
+    type: 'welcome' | 'verification' | 'password-reset' | 'password-changed',
+    to: string,
+    data: any
+  ): Promise<void> {
+    await this.publish(QUEUES.AUTH_EMAILS, {
+      type,
+      to,
+      data,
+      createdAt: new Date().toISOString(),
     });
   }
 }

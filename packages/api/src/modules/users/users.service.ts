@@ -154,4 +154,36 @@ export class UsersService {
 
     return { url: accountLink.url };
   }
+
+  /**
+   * Sync Stripe account status (called by webhooks)
+   */
+  async syncStripeAccountStatus(accountId: string) {
+    // Find user by Stripe account ID
+    const user = await db.query.users.findFirst({
+      where: eq(users.stripeAccountId, accountId),
+    });
+
+    if (!user) {
+      console.log(`No user found for Stripe account: ${accountId}`);
+      return null;
+    }
+
+    // Check current onboarding status
+    const onboarded = await isAccountOnboarded(accountId);
+
+    // Update user's onboarding status if changed
+    if (user.stripeOnboarded !== onboarded) {
+      const [updated] = await db
+        .update(users)
+        .set({ stripeOnboarded: onboarded, updatedAt: new Date() })
+        .where(eq(users.id, user.id))
+        .returning();
+
+      console.log(`Updated Stripe onboarding status for user ${user.id}: ${onboarded}`);
+      return updated;
+    }
+
+    return user;
+  }
 }

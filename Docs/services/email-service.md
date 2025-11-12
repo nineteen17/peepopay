@@ -158,6 +158,98 @@ interface GenericNotificationEmailProps {
 }
 ```
 
+### Authentication Email Templates
+
+Integrated with Better Auth for user authentication flows.
+
+#### 3. Welcome Email
+
+**File**: `src/emails/welcome-email.tsx`
+
+Sent when a new user signs up successfully.
+
+**Props**:
+```typescript
+interface WelcomeEmailProps {
+  userName: string;
+  userEmail: string;
+  dashboardUrl?: string;
+}
+```
+
+**Features**:
+- Welcome message with brand introduction
+- List of platform benefits
+- Call-to-action button to dashboard
+- Next steps guidance for getting started
+
+#### 4. Email Verification
+
+**File**: `src/emails/verify-email.tsx`
+
+Sent when email verification is required (enabled in production).
+
+**Props**:
+```typescript
+interface VerifyEmailProps {
+  userName: string;
+  verificationUrl: string;
+  verificationCode?: string;
+  expiresIn?: string;
+}
+```
+
+**Features**:
+- Verification link button
+- Optional verification code display
+- Expiration time notice
+- Security information
+
+#### 5. Password Reset
+
+**File**: `src/emails/password-reset.tsx`
+
+Sent when a user requests to reset their password.
+
+**Props**:
+```typescript
+interface PasswordResetEmailProps {
+  userName: string;
+  resetUrl: string;
+  resetCode?: string;
+  expiresIn?: string;
+}
+```
+
+**Features**:
+- Password reset link button
+- Optional reset code display
+- Security warnings and best practices
+- Expiration time notice
+
+#### 6. Password Changed Confirmation
+
+**File**: `src/emails/password-changed.tsx`
+
+Sent after a successful password change for security confirmation.
+
+**Props**:
+```typescript
+interface PasswordChangedEmailProps {
+  userName: string;
+  changedAt: string;
+  ipAddress?: string;
+  userAgent?: string;
+}
+```
+
+**Features**:
+- Change confirmation with timestamp
+- Device and location information
+- Security alert section
+- Contact support option
+- Password security tips
+
 ### Creating New Templates
 
 1. Create a new file in `src/emails/` (e.g., `password-reset.tsx`)
@@ -312,6 +404,72 @@ if (result.error) {
 }
 ```
 
+### Better Auth Integration
+
+Authentication emails are automatically sent by Better Auth when configured. The integration is set up in `src/lib/auth.ts`:
+
+**Email Verification** (enabled in production):
+```typescript
+emailVerification: {
+  sendOnSignUp: true,
+  sendVerificationEmail: async ({ user, url }) => {
+    await sendVerificationEmail(
+      user.email,
+      user.name || 'User',
+      url,
+      undefined,
+      '24 hours'
+    );
+  },
+}
+```
+
+**Password Reset**:
+```typescript
+emailAndPassword: {
+  sendResetPassword: async ({ user, url }) => {
+    await sendPasswordResetEmail(
+      user.email,
+      user.name || 'User',
+      url,
+      undefined,
+      '1 hour'
+    );
+  },
+}
+```
+
+**Welcome Email Hook**:
+```typescript
+hooks: {
+  after: [
+    {
+      matcher: (context) => context.path === '/sign-up/email',
+      handler: async (context) => {
+        if (context.body?.user) {
+          const user = context.body.user;
+          // Send welcome email (non-blocking)
+          sendWelcomeEmail(user.email, user.name || 'User').catch(console.error);
+        }
+      },
+    },
+  ],
+}
+```
+
+**Email Functions** (`src/lib/email.ts`):
+- `sendWelcomeEmail(to, userName, dashboardUrl)` - Welcome new users
+- `sendVerificationEmail(to, userName, url, code, expires)` - Email verification
+- `sendPasswordResetEmail(to, userName, url, code, expires)` - Password reset
+- `sendPasswordChangedEmail(to, userName, changedAt, ip, ua)` - Security confirmation
+- `sendNotificationEmail(to, subject, body)` - Generic notifications
+
+**Configuration**:
+- Email verification is **disabled in development** for easier testing
+- Email verification is **enabled in production** for security
+- All auth emails use the same Resend configuration
+- Failed auth emails are automatically retried via the queue system
+
 ## Queue System
 
 The email system uses RabbitMQ for reliable, asynchronous processing.
@@ -320,6 +478,7 @@ The email system uses RabbitMQ for reliable, asynchronous processing.
 
 - `EMAIL_NOTIFICATIONS` - Generic email notifications
 - `BOOKING_CONFIRMATIONS` - Booking confirmation emails
+- `AUTH_EMAILS` - Authentication-related emails (welcome, verification, password reset)
 - `FAILED_JOBS` - Dead letter queue for failed emails
 
 ### Worker Service
