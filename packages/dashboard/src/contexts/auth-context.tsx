@@ -3,15 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  slug: string;
-  stripeAccountId?: string;
-  stripeOnboardingComplete: boolean;
-}
+import type { User } from '@/types/api';
 
 interface AuthContextType {
   user: User | null;
