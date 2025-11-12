@@ -189,7 +189,7 @@ Comprehensive documentation is available in the [`Docs/`](./Docs) directory:
 
 - [Tech Stack](./Docs/architecture/01-tech-stack.md) - Technology decisions and rationale
 - [System Design](./Docs/architecture/02-system-design.md) - Architecture overview
-- [Database Schema](./Docs/architecture/03-database-schema.md) - Drizzle ORM models ⚠️ (Outdated - see source code)
+- [Database Schema](./Docs/architecture/03-database-schema.md) - Complete schema reference with examples
 - [Docker Migrations](./MIGRATIONS_DOCKER.md) - Running migrations in Docker Compose & Swarm
 - [Quick Migration Guide](./QUICKSTART_MIGRATION.md) - Run the latest migration now
 
