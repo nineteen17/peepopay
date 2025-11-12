@@ -6,6 +6,7 @@ import { users } from './users.js';
 import { services } from './services.js';
 
 export const bookingStatusEnum = ['pending', 'confirmed', 'cancelled', 'completed', 'refunded'] as const;
+export const depositStatusEnum = ['pending', 'paid', 'failed', 'refunded'] as const;
 
 export const bookings = pgTable('bookings', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -15,7 +16,8 @@ export const bookings = pgTable('bookings', {
   // Customer details
   customerName: text('customer_name').notNull(),
   customerEmail: text('customer_email').notNull(),
-  customerPhone: text('customer_phone'),
+  customerPhone: text('customer_phone').notNull(),
+  customerAddress: text('customer_address'),
 
   // Booking details
   bookingDate: timestamp('booking_date').notNull(),
@@ -24,6 +26,7 @@ export const bookings = pgTable('bookings', {
 
   // Payment
   depositAmount: integer('deposit_amount').notNull(), // Amount in cents
+  depositStatus: text('deposit_status', { enum: depositStatusEnum }).default('pending').notNull(),
   status: text('status', { enum: bookingStatusEnum }).default('pending').notNull(),
 
   // Stripe
@@ -54,11 +57,13 @@ export const bookingsRelations = relations(bookings, ({ one }) => ({
 export const insertBookingSchema = createInsertSchema(bookings, {
   customerName: z.string().min(2).max(100),
   customerEmail: z.string().email(),
-  customerPhone: z.string().optional(),
+  customerPhone: z.string().min(10).max(20),
+  customerAddress: z.string().max(500).optional(),
   bookingDate: z.date().or(z.string()),
   duration: z.number().min(15).max(480),
   notes: z.string().max(1000).optional(),
   depositAmount: z.number().min(100),
+  depositStatus: z.enum(depositStatusEnum).optional(),
   status: z.enum(bookingStatusEnum).optional(),
 }).omit({
   id: true,
@@ -71,3 +76,4 @@ export const selectBookingSchema = createSelectSchema(bookings);
 export type Booking = typeof bookings.$inferSelect;
 export type NewBooking = z.infer<typeof insertBookingSchema>;
 export type BookingStatus = typeof bookingStatusEnum[number];
+export type DepositStatus = typeof depositStatusEnum[number];

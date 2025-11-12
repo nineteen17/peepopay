@@ -87,3 +87,39 @@ export type NewAvailability = z.infer<typeof insertAvailabilitySchema>;
 export type BlockedSlot = typeof blockedSlots.$inferSelect;
 export type NewBlockedSlot = z.infer<typeof insertBlockedSlotSchema>;
 export type DayOfWeek = typeof dayOfWeekEnum[number];
+
+/**
+ * Convert JavaScript day of week (0-6) to our DayOfWeek enum
+ * @param jsDay - JavaScript day (0 = Sunday, 6 = Saturday)
+ * @returns DayOfWeek enum value
+ */
+export function getJSDayOfWeek(jsDay: number): DayOfWeek {
+  const mapping: DayOfWeek[] = [
+    'sunday',
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+  ];
+  return mapping[jsDay];
+}
+
+/**
+ * Convert DayOfWeek enum to JavaScript day of week (0-6)
+ * @param dayOfWeek - DayOfWeek enum value
+ * @returns JavaScript day (0 = Sunday, 6 = Saturday)
+ */
+export function getDayOfWeekJS(dayOfWeek: DayOfWeek): number {
+  const mapping: Record<DayOfWeek, number> = {
+    sunday: 0,
+    monday: 1,
+    tuesday: 2,
+    wednesday: 3,
+    thursday: 4,
+    friday: 5,
+    saturday: 6,
+  };
+  return mapping[dayOfWeek];
+}

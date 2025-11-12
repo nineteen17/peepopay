@@ -1,6 +1,6 @@
 import { db } from '../../db/index.js';
 import { bookings, services, insertBookingSchema, type NewBooking, type BookingStatus } from '../../db/schema/index.js';
-import { eq, and, gte, lte } from 'drizzle-orm';
+import { eq, and, gte, lte, lt, or } from 'drizzle-orm';
 import { AppError } from '../../middleware/errorHandler.js';
 import { createPaymentIntent } from '../../lib/stripe.js';
 import { QueueService } from '../../lib/queue.js';
@@ -9,6 +9,27 @@ export interface BookingFilters {
   status?: string;
   from?: string;
   to?: string;
+}
+
+/**
+ * Booking state machine - defines valid status transitions
+ */
+const VALID_STATUS_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
+  pending: ['confirmed', 'cancelled'],
+  confirmed: ['completed', 'cancelled'],
+  cancelled: [], // Terminal state
+  completed: ['refunded'],
+  refunded: [], // Terminal state
+};
+
+/**
+ * Validate if a status transition is allowed
+ */
+function validateStatusTransition(
+  currentStatus: BookingStatus,
+  newStatus: BookingStatus
+): boolean {
+  return VALID_STATUS_TRANSITIONS[currentStatus]?.includes(newStatus) || false;
 }
 
 /**
@@ -66,59 +87,111 @@ export class BookingsService {
   }
 
   /**
+   * Check for booking conflicts
+   * Returns true if there's a conflict, false if slot is available
+   */
+  async checkBookingConflict(
+    userId: string,
+    bookingDate: Date,
+    duration: number
+  ): Promise<boolean> {
+    const endTime = new Date(bookingDate.getTime() + duration * 60000);
+
+    const conflicts = await db.query.bookings.findMany({
+      where: and(
+        eq(bookings.userId, userId),
+        or(
+          eq(bookings.status, 'confirmed'),
+          eq(bookings.status, 'pending')
+        ),
+        // Check for time overlap: booking starts before our slot ends AND booking ends after our slot starts
+        lt(bookings.bookingDate, endTime)
+      ),
+      with: {
+        service: true,
+      },
+    });
+
+    // Check if any existing booking overlaps with the new slot
+    for (const booking of conflicts) {
+      const bookingStart = new Date(booking.bookingDate);
+      const bookingEnd = new Date(bookingStart.getTime() + booking.duration * 60000);
+
+      // Check for overlap: existing booking ends after new slot starts
+      if (bookingEnd > bookingDate) {
+        return true; // Conflict found
+      }
+    }
+
+    return false; // No conflicts
+  }
+
+  /**
    * Create a new booking (public endpoint - from widget)
    */
   async createBooking(data: NewBooking) {
     const validatedData = insertBookingSchema.parse(data);
 
-    // Get service to verify and get tradie's Stripe account
-    const service = await db.query.services.findFirst({
-      where: eq(services.id, validatedData.serviceId),
-      with: {
-        user: true,
-      },
+    // Use transaction to ensure data consistency
+    return await db.transaction(async (tx) => {
+      // 1. Get service to verify and get tradie's Stripe account
+      const service = await tx.query.services.findFirst({
+        where: eq(services.id, validatedData.serviceId),
+        with: {
+          user: true,
+        },
+      });
+
+      if (!service) {
+        throw new AppError(404, 'Service not found');
+      }
+
+      if (!service.user.stripeAccountId) {
+        throw new AppError(400, 'Tradie has not set up payments yet');
+      }
+
+      // 2. Check for booking conflicts
+      const bookingDate = new Date(validatedData.bookingDate);
+      const hasConflict = await this.checkBookingConflict(
+        service.userId,
+        bookingDate,
+        validatedData.duration
+      );
+
+      if (hasConflict) {
+        throw new AppError(409, 'This time slot is no longer available. Please select a different time.');
+      }
+
+      // 3. Create payment intent
+      const paymentIntent = await createPaymentIntent({
+        amount: validatedData.depositAmount,
+        connectedAccountId: service.user.stripeAccountId,
+        metadata: {
+          serviceId: service.id,
+          serviceName: service.name,
+          customerEmail: validatedData.customerEmail,
+          customerName: validatedData.customerName,
+        },
+      });
+
+      // 4. Create booking with payment intent ID
+      const [newBooking] = await tx
+        .insert(bookings)
+        .values({
+          ...validatedData,
+          userId: service.userId,
+          status: 'pending',
+          depositStatus: 'pending',
+          stripePaymentIntentId: paymentIntent.id,
+          bookingDate,
+        })
+        .returning();
+
+      return {
+        booking: newBooking,
+        clientSecret: paymentIntent.client_secret,
+      };
     });
-
-    if (!service) {
-      throw new AppError(404, 'Service not found');
-    }
-
-    if (!service.user.stripeAccountId) {
-      throw new AppError(400, 'Tradie has not set up payments yet');
-    }
-
-    // Create booking
-    const [newBooking] = await db
-      .insert(bookings)
-      .values({
-        ...validatedData,
-        userId: service.userId,
-        status: 'pending',
-      })
-      .returning();
-
-    // Create payment intent
-    const paymentIntent = await createPaymentIntent({
-      amount: validatedData.depositAmount,
-      connectedAccountId: service.user.stripeAccountId,
-      metadata: {
-        bookingId: newBooking.id,
-        serviceId: service.id,
-        serviceName: service.name,
-      },
-    });
-
-    // Update booking with payment intent ID
-    const [updated] = await db
-      .update(bookings)
-      .set({ stripePaymentIntentId: paymentIntent.id })
-      .where(eq(bookings.id, newBooking.id))
-      .returning();
-
-    return {
-      booking: updated,
-      clientSecret: paymentIntent.client_secret,
-    };
   }
 
   /**
@@ -132,6 +205,14 @@ export class BookingsService {
 
     if (!existing) {
       throw new AppError(404, 'Booking not found');
+    }
+
+    // Validate status transition
+    if (!validateStatusTransition(existing.status as BookingStatus, status)) {
+      throw new AppError(
+        400,
+        `Invalid status transition from '${existing.status}' to '${status}'`
+      );
     }
 
     const [updated] = await db
@@ -159,6 +240,14 @@ export class BookingsService {
       throw new AppError(400, 'Booking is already cancelled');
     }
 
+    // Validate status transition using state machine
+    if (!validateStatusTransition(booking.status as BookingStatus, 'cancelled')) {
+      throw new AppError(
+        400,
+        `Cannot cancel booking with status '${booking.status}'`
+      );
+    }
+
     const [updated] = await db
       .update(bookings)
       .set({ status: 'cancelled', updatedAt: new Date() })
@@ -176,6 +265,7 @@ export class BookingsService {
       .update(bookings)
       .set({
         status: 'confirmed',
+        depositStatus: 'paid',
         stripeChargeId: chargeId,
         updatedAt: new Date(),
       })
@@ -216,6 +306,7 @@ export class BookingsService {
       .update(bookings)
       .set({
         status: 'cancelled',
+        depositStatus: 'failed',
         updatedAt: new Date(),
       })
       .where(eq(bookings.stripePaymentIntentId, paymentIntentId));

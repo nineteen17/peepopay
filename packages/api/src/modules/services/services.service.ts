@@ -2,7 +2,7 @@ import { db } from '../../db/index.js';
 import { services, users, insertServiceSchema, type NewService } from '../../db/schema/index.js';
 import { eq, and } from 'drizzle-orm';
 import { AppError } from '../../middleware/errorHandler.js';
-import { CacheService } from '../../lib/redis.js';
+import { createCacheService, type CacheService } from '../../lib/redis.js';
 
 /**
  * Services Service
@@ -12,7 +12,7 @@ export class ServicesService {
   private cacheService: CacheService;
 
   constructor() {
-    this.cacheService = new CacheService();
+    this.cacheService = createCacheService();
   }
 
   /**
@@ -38,21 +38,23 @@ export class ServicesService {
       return cached;
     }
 
-    // Fetch from database
-    const userServices = await db.query.services.findMany({
-      where: eq(services.isActive, true),
+    // Fetch from database using join for better performance
+    const user = await db.query.users.findFirst({
+      where: eq(users.slug, slug),
       with: {
-        user: true,
+        services: {
+          where: eq(services.isActive, true),
+          orderBy: (services, { asc }) => [asc(services.name)],
+        },
       },
     });
 
-    // Filter by user slug
-    const filtered = userServices.filter((s) => s.user.slug === slug);
+    const userServices = user?.services || [];
 
     // Cache for 10 minutes
-    await this.cacheService.set(cacheKey, filtered, 600);
+    await this.cacheService.set(cacheKey, userServices, 600);
 
-    return filtered;
+    return userServices;
   }
 
   /**

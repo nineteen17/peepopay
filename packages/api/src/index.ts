@@ -18,6 +18,7 @@ import servicesController from './modules/services/services.controller.js';
 import bookingsController from './modules/bookings/bookings.controller.js';
 import usersController from './modules/users/users.controller.js';
 import webhooksController from './modules/webhooks/webhooks.controller.js';
+import availabilityController from './modules/availability/availability.controller.js';
 
 const app: Express = express();
 
@@ -92,6 +93,7 @@ app.use('/api/services', servicesController);
 app.use('/api/bookings', bookingsController);
 app.use('/api/users', usersController);
 app.use('/api/webhooks', webhooksController);
+app.use('/api/availability', availabilityController);
 
 // 404 handler
 app.use(notFound);
