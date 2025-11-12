@@ -178,6 +178,107 @@ booking.bookingDate; // TypeScript knows this exists!
 
 See [TYPE_SAFETY_SETUP.md](../../TYPE_SAFETY_SETUP.md) for more details.
 
+## 📊 API Schema Reference
+
+### Service Entity
+
+```typescript
+interface Service {
+  id: string;
+  userId: string;
+
+  // Service details
+  name: string;
+  description: string | null;
+  duration: number;  // In minutes
+
+  // Pricing
+  depositAmount: number;     // Amount in cents (or percentage if depositType is 'percentage')
+  depositType: 'percentage' | 'fixed';  // How deposit is calculated
+  depositPercentage: number | null;     // Deprecated
+  fullPrice: number | null;            // Total service price in cents
+
+  // Settings
+  isActive: boolean | null;
+  requiresApproval: boolean | null;
+
+  // Timestamps
+  createdAt: string;  // ISO 8601
+  updatedAt: string;  // ISO 8601
+}
+```
+
+**Key Fields:**
+- `depositType`: Determines if deposit is a fixed amount or percentage
+- `depositAmount`: Amount in cents OR percentage (1-100) depending on depositType
+- `fullPrice`: Optional total service cost for reference
+- `requiresApproval`: If true, bookings require manual confirmation
+
+### Booking Entity
+
+```typescript
+interface Booking {
+  id: string;
+  userId: string;
+  serviceId: string;
+
+  // Customer details (all required)
+  customerName: string;       // 2-100 characters
+  customerEmail: string;      // Valid email
+  customerPhone: string;      // 10-20 characters (required)
+  customerAddress: string | null;  // Optional, max 500 chars
+
+  // Booking details
+  bookingDate: string;        // ISO 8601
+  duration: number;           // In minutes
+  notes: string | null;       // Max 1000 characters
+
+  // Payment
+  depositAmount: number;      // Amount in cents
+  depositStatus: 'pending' | 'paid' | 'failed' | 'refunded';
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'refunded';
+
+  // Stripe
+  stripePaymentIntentId: string | null;
+  stripeChargeId: string | null;
+
+  // Metadata
+  metadata: Record<string, any> | null;
+
+  // Timestamps
+  createdAt: string;  // ISO 8601
+  updatedAt: string;  // ISO 8601
+}
+```
+
+**Status Flow:**
+- `pending` → `confirmed` → `completed` (or `cancelled` at any point)
+- `depositStatus` tracks payment separately from booking status
+
+### User Entity
+
+```typescript
+interface User {
+  id: string;
+  email: string;
+  emailVerified: boolean;
+  name: string | null;
+  businessName: string | null;
+  slug: string | null;         // Unique URL-friendly identifier
+  image: string | null;
+  stripeAccountId: string | null;
+  stripeOnboardingComplete: boolean;
+  createdAt: string;  // ISO 8601
+  updatedAt: string;  // ISO 8601
+}
+```
+
+**Important Changes from Previous Versions:**
+- `customerPhone` is now **required** in bookings (was optional)
+- `customerAddress` is now available (optional)
+- `depositType` field supports both fixed and percentage deposits
+- `requiresApproval` flag enables manual booking confirmation workflow
+
 ## 📱 Pages & Features
 
 ### Authentication
@@ -215,10 +316,12 @@ See [TYPE_SAFETY_SETUP.md](../../TYPE_SAFETY_SETUP.md) for more details.
 **Create/Edit Service** (`/dashboard/services/new`, `/dashboard/services/[id]/edit`)
 - Service name
 - Description
-- Price (in dollars)
-- Deposit amount
+- Deposit amount (in dollars or percentage)
+- Deposit type (fixed amount or percentage)
+- Full price (optional, for reference)
 - Duration (minutes)
-- Active status
+- Requires approval toggle
+- Active status toggle
 - Form validation with Zod
 
 ### Bookings
