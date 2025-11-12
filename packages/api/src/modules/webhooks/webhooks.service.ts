@@ -1,4 +1,5 @@
 import { BookingsService } from '../bookings/bookings.service.js';
+import { UsersService } from '../users/users.service.js';
 import { constructWebhookEvent } from '../../lib/stripe.js';
 import { config } from '../../config/index.js';
 
@@ -8,9 +9,11 @@ import { config } from '../../config/index.js';
  */
 export class WebhooksService {
   private bookingsService: BookingsService;
+  private usersService: UsersService;
 
   constructor() {
     this.bookingsService = new BookingsService();
+    this.usersService = new UsersService();
   }
 
   /**
@@ -46,7 +49,14 @@ export class WebhooksService {
    */
   async handleAccountUpdated(account: any) {
     console.log('Stripe account updated:', account.id);
-    // You can add logic here to update user's Stripe onboarding status if needed
+
+    // Sync account onboarding status with database
+    try {
+      await this.usersService.syncStripeAccountStatus(account.id);
+    } catch (error) {
+      console.error('Error syncing Stripe account status:', error);
+      // Don't throw - this is not critical
+    }
   }
 
   /**

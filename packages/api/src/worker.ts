@@ -175,27 +175,24 @@ async function handleAuthEmail(message: any) {
 async function handleStripeWebhook(message: any) {
   const { eventId, eventType, data } = message;
 
-  console.log(`💳 Processing Stripe webhook: ${eventType}`);
+  console.log(`💳 Processing Stripe webhook: ${eventType} (ID: ${eventId})`);
 
-  // Process different webhook events
-  switch (eventType) {
-    case 'payment_intent.succeeded':
-      console.log(`✅ Payment succeeded for ${data.object.id}`);
-      // Additional processing...
-      break;
+  try {
+    // Import and instantiate WebhooksService
+    const { WebhooksService } = await import('./modules/webhooks/webhooks.service.js');
+    const webhooksService = new WebhooksService();
 
-    case 'payment_intent.payment_failed':
-      console.log(`❌ Payment failed for ${data.object.id}`);
-      // Send failure notification...
-      break;
+    // Process the webhook event
+    await webhooksService.processStripeEvent({
+      id: eventId,
+      type: eventType,
+      data: { object: data },
+    });
 
-    case 'account.updated':
-      console.log(`📊 Stripe account updated: ${data.object.id}`);
-      // Update user's Stripe account status...
-      break;
-
-    default:
-      console.log(`ℹ️ Unhandled webhook event: ${eventType}`);
+    console.log(`✅ Webhook processed successfully: ${eventType}`);
+  } catch (error) {
+    console.error(`❌ Failed to process webhook ${eventType}:`, error);
+    throw error; // Will be retried or sent to dead letter queue
   }
 }
 
