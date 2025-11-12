@@ -1,8 +1,17 @@
 # Database Schema
 
+> ⚠️ **WARNING: This documentation is outdated and does not reflect the current schema implementation.**
+>
+> **For accurate schema information, please refer to:**
+> - Source code: `packages/api/src/db/schema/`
+> - Latest migration: `packages/api/drizzle/0001_implementation_plan_fixes.sql`
+> - Run `npm run db:studio` in packages/api to view live schema
+>
+> **This file will be updated in a future PR.**
+
 ## Overview
 
-PeepoPay uses PostgreSQL hosted on Supabase with Drizzle ORM for type-safe database access.
+PeepoPay uses PostgreSQL with Drizzle ORM for type-safe database access.
 
 ## Entity Relationship Diagram
 
