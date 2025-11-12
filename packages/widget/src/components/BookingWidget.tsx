@@ -4,17 +4,9 @@ import ServiceSelection from './ServiceSelection';
 import DateTimePicker from './DateTimePicker';
 import CustomerForm from './CustomerForm';
 import { ArrowLeft, CreditCard, CheckCircle, Loader2 } from 'lucide-react';
+import type { Service, NewBooking, CreateBookingResponse } from '../types/api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-
-interface Service {
-  id: string;
-  name: string;
-  description: string;
-  depositAmount: number;
-  duration: number;
-  isActive: boolean;
-}
 
 interface BookingWidgetProps {
   userSlug: string;
@@ -33,6 +25,7 @@ export default function BookingWidget({ userSlug }: BookingWidgetProps) {
     customerName: '',
     customerEmail: '',
     customerPhone: '',
+    customerAddress: '',
     notes: '',
   });
 
@@ -71,7 +64,7 @@ export default function BookingWidget({ userSlug }: BookingWidgetProps) {
   };
 
   const handleContinueToPayment = () => {
-    if (!formData.customerName || !formData.customerEmail) return;
+    if (!formData.customerName || !formData.customerEmail || !formData.customerPhone) return;
     setStep('payment');
   };
 
@@ -84,27 +77,32 @@ export default function BookingWidget({ userSlug }: BookingWidgetProps) {
     setError('');
 
     try {
-      // Create booking
+      // Create booking with updated API requirements
+      const bookingPayload: NewBooking = {
+        userId: selectedService.userId,
+        serviceId: selectedService.id,
+        bookingDate: selectedDateTime.toISOString(),
+        duration: selectedService.duration,
+        depositAmount: selectedService.depositAmount,
+        customerName: formData.customerName,
+        customerEmail: formData.customerEmail,
+        customerPhone: formData.customerPhone,
+        customerAddress: formData.customerAddress || undefined,
+        notes: formData.notes || undefined,
+      };
+
       const response = await fetch(`${API_URL}/api/bookings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          serviceId: selectedService.id,
-          bookingDate: selectedDateTime.toISOString(),
-          duration: selectedService.duration,
-          depositAmount: selectedService.depositAmount,
-          customerName: formData.customerName,
-          customerEmail: formData.customerEmail,
-          customerPhone: formData.customerPhone || undefined,
-          notes: formData.notes || undefined,
-        }),
+        body: JSON.stringify(bookingPayload),
       });
 
       if (!response.ok) {
         throw new Error('Failed to create booking');
       }
 
-      const { clientSecret } = await response.json();
+      const data: CreateBookingResponse = await response.json();
+      const { clientSecret } = data;
 
       // Confirm payment with updated Stripe API
       const { error: stripeError, paymentIntent } = await stripe.confirmPayment({
@@ -144,6 +142,7 @@ export default function BookingWidget({ userSlug }: BookingWidgetProps) {
       customerName: '',
       customerEmail: '',
       customerPhone: '',
+      customerAddress: '',
       notes: '',
     });
     setError('');
@@ -277,7 +276,7 @@ export default function BookingWidget({ userSlug }: BookingWidgetProps) {
           <CustomerForm formData={formData} onChange={setFormData} />
           <button
             onClick={handleContinueToPayment}
-            disabled={!formData.customerName || !formData.customerEmail}
+            disabled={!formData.customerName || !formData.customerEmail || !formData.customerPhone}
             className="w-full mt-6 px-6 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-lg transition-colors"
           >
             Continue to Payment
