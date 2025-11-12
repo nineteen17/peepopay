@@ -120,6 +120,28 @@ services:
     networks:
       - peepopay
 
+  # Database Migration Service (run with: docker-compose run --rm migrate)
+  migrate:
+    build:
+      context: ./packages/api
+      dockerfile: Dockerfile
+    container_name: peepopay-migrate
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/peepopay
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://admin:${RABBITMQ_PASSWORD:-admin123}@rabbitmq:5672
+    command: ["npm", "run", "db:migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - peepopay
+    profiles:
+      - tools  # Only runs when explicitly called with --profile tools
+
   # Dashboard (Next.js)
   dashboard:
     build:
