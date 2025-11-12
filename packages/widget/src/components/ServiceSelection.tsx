@@ -1,13 +1,5 @@
 import { Clock, DollarSign } from 'lucide-react';
-
-interface Service {
-  id: string;
-  name: string;
-  description: string;
-  depositAmount: number;
-  duration: number;
-  isActive: boolean;
-}
+import type { Service } from '../types/api';
 
 interface ServiceSelectionProps {
   services: Service[];

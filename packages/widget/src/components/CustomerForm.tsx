@@ -1,9 +1,10 @@
-import { User, Mail, Phone, MessageSquare } from 'lucide-react';
+import { User, Mail, Phone, MessageSquare, MapPin } from 'lucide-react';
 
 interface CustomerFormData {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  customerAddress: string;
   notes: string;
 }
 
@@ -50,14 +51,30 @@ export default function CustomerForm({ formData, onChange }: CustomerFormProps) 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
           <Phone className="h-4 w-4 text-gray-400" />
-          Phone Number
+          Phone Number *
         </label>
         <input
           type="tel"
+          required
           value={formData.customerPhone}
           onChange={(e) => onChange({ ...formData, customerPhone: e.target.value })}
           className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           placeholder="(555) 123-4567"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+          <MapPin className="h-4 w-4 text-gray-400" />
+          Address (Optional)
+        </label>
+        <input
+          type="text"
+          value={formData.customerAddress}
+          onChange={(e) => onChange({ ...formData, customerAddress: e.target.value })}
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          placeholder="123 Main St, City, State ZIP"
+          maxLength={500}
         />
       </div>
 

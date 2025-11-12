@@ -162,23 +162,24 @@ Main widget component managing state and flow:
 
 ```typescript
 interface BookingWidgetProps {
-  tradieSlug: string;  // Username/slug of tradie
+  userSlug: string;  // Username/slug of tradie (user's slug field)
 }
 ```
 
 **State Management:**
-- Current step (1-4)
-- Selected service
+- Current step (1-5)
+- Selected service (Service type with full schema)
 - Selected date/time
-- Customer information
+- Customer information (all required fields)
 - Payment processing state
+- Booking status tracking
 
 **Steps:**
-1. Service selection
+1. Service selection (filter by `isActive`)
 2. Date & time picker
-3. Customer form
-4. Payment (Stripe Elements)
-5. Success confirmation
+3. Customer form (name, email, phone required; address, notes optional)
+4. Payment (Stripe Elements with updated Payment Intents API)
+5. Success confirmation with booking details
 
 ### ServiceSelection.tsx
 
@@ -188,18 +189,24 @@ Displays available services for a tradie:
 interface Service {
   id: string;
   name: string;
-  description: string;
-  price: number;        // In cents
-  duration: number;     // In minutes
-  depositAmount: number; // In cents
+  description: string | null;
+  duration: number;          // In minutes
+  depositAmount: number;     // Amount in cents (or percentage if depositType is 'percentage')
+  depositType: 'percentage' | 'fixed'; // How deposit is calculated
+  depositPercentage: number | null;    // Deprecated field
+  fullPrice: number | null;           // Total service price in cents
+  isActive: boolean | null;
+  requiresApproval: boolean | null;
 }
 ```
 
 **Features:**
 - Fetches services from `/api/services/user/{slug}`
 - Shows service details with pricing
+- Supports both fixed amount and percentage-based deposits
 - Loading and error states
 - Empty state handling
+- Only displays active services (`isActive: true`)
 
 ### DateTimePicker.tsx
 
@@ -225,17 +232,19 @@ Customer information collection:
 
 ```typescript
 interface CustomerInfo {
-  fullName: string;
-  email: string;
-  phone?: string;
-  notes?: string;
+  customerName: string;    // Full name (2-100 characters)
+  customerEmail: string;   // Email address (valid format)
+  customerPhone: string;   // Phone number (10-20 characters)
+  customerAddress?: string; // Optional address (max 500 characters)
+  notes?: string;          // Additional notes (max 1000 characters)
 }
 ```
 
 **Validation:**
-- Required: Full name, email
-- Optional: Phone, notes
+- Required: Full name, email, phone number
+- Optional: Address, notes
 - HTML5 email validation
+- Field length constraints enforced
 
 ## 💳 Stripe Integration
 
@@ -394,25 +403,39 @@ docker-compose -f ../../docker-compose.yml up widget
 ```typescript
 // Get services for a tradie
 GET /api/services/user/:slug
+Response: {
+  services: Service[]  // Only active services (isActive: true)
+}
 
 // Create booking
 POST /api/bookings
 {
+  userId: string;            // Tradie's user ID (from service.userId)
   serviceId: string;
-  bookingDate: string;  // ISO 8601
-  customerName: string;
-  customerEmail: string;
-  customerPhone?: string;
-  notes?: string;
-  depositAmount: number;
+  bookingDate: string;       // ISO 8601
+  duration: number;          // Duration in minutes (from service)
+  customerName: string;      // 2-100 characters (required)
+  customerEmail: string;     // Valid email (required)
+  customerPhone: string;     // 10-20 characters (required)
+  customerAddress?: string;  // Max 500 characters (optional)
+  notes?: string;           // Max 1000 characters (optional)
+  depositAmount: number;     // Amount in cents (from service)
+  depositStatus?: 'pending' | 'paid' | 'failed' | 'refunded';
+  status?: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'refunded';
 }
 
 // Response includes clientSecret for Stripe
-{
-  booking: {...},
-  clientSecret: string
+Response: {
+  booking: Booking,          // Full booking object
+  clientSecret: string       // Stripe Payment Intent client secret
 }
 ```
+
+**Important Changes:**
+- `userId` field is now **required** in booking creation
+- `customerPhone` is now **required** (was optional before)
+- `duration` field is now **required** in booking payload
+- Response type changed from object to typed interface
 
 ## 🧪 Testing
 
