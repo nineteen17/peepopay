@@ -1,465 +1,537 @@
 # Database Schema
 
+> 💡 **Source of Truth**: This documentation is generated from the actual schema files in `packages/api/src/db/schema/`
+>
+> **Last Updated**: 2025-11-12 (Implementation Plan migration applied)
+
 ## Overview
 
-PeepoPay uses PostgreSQL hosted on Supabase with Drizzle ORM for type-safe database access.
+PeepoPay uses **PostgreSQL 16** with **Drizzle ORM** for type-safe database access. All schemas use **Zod** for validation and automatic OpenAPI generation.
+
+## Core Principles
+
+- **UUID Primary Keys**: All tables use UUID for distributed-friendly IDs
+- **Timestamps**: All tables have `createdAt` and `updatedAt`
+- **Soft Deletes**: Use `isActive` flags instead of hard deletes where appropriate
+- **Zod Validation**: All schemas have auto-generated Zod validators
+- **Type Safety**: TypeScript types inferred directly from schema definitions
 
 ## Entity Relationship Diagram
 
 ```
-┌─────────────┐
-│    Users    │
-│  (Tradies)  │
-├─────────────┤
-│ id          │◄────┐
-│ email       │     │
-│ name        │     │
-│ businessName│     │
-│ slug        │     │  One-to-Many
-│ stripeAcctId│     │
-│ onboarded   │     │
-└─────────────┘     │
-                    │
-       ┌────────────┼────────────┐
-       │            │            │
-       │            │            │
-       ▼            ▼            ▼
-┌───────────┐ ┌──────────┐ ┌─────────────┐
-│ Services  │ │Availability│ │  Bookings   │
-├───────────┤ ├──────────┤ ├─────────────┤
-│ id        │ │ id       │ │ id          │
-│ userId    │ │ userId   │ │ userId      │
-│ name      │ │ dayOfWeek│ │ serviceId   │◄──┐
-│ deposit   │ │ startTime│ │ customerName│   │
-│ duration  │ │ endTime  │ │ bookingDate │   │
-└───────────┘ │blockedDts│ │ depositAmt  │   │
-              └──────────┘ │ status      │   │
-                           └─────────────┘   │
-                                             │
-                                             │
-                              One-to-Many    │
-                                   Services have
-                                   many Bookings
+┌─────────────────────┐
+│       Users         │
+│     (Tradies)       │
+├─────────────────────┤
+│ id (UUID)           │◄────────┐
+│ email               │         │
+│ name                │         │
+│ businessName        │         │
+│ slug (unique)       │         │
+│ stripeAccountId     │         │
+│ timezone            │         │
+└─────────────────────┘         │
+         │                      │
+         │ One-to-Many          │
+         ├──────────────┬───────┴──────┬─────────────┐
+         │              │              │             │
+         ▼              ▼              ▼             ▼
+┌──────────────┐ ┌─────────────┐ ┌──────────────┐ ┌──────────────┐
+│  Services    │ │Availability │ │BlockedSlots  │ │  Bookings    │
+├──────────────┤ ├─────────────┤ ├──────────────┤ ├──────────────┤
+│ id           │ │ id          │ │ id           │ │ id           │
+│ userId       │ │ userId      │ │ userId       │ │ userId       │
+│ name         │ │ dayOfWeek   │ │ startTime    │ │ serviceId    │◄──┐
+│ depositType  │ │ startTime   │ │ endTime      │ │ customerName │   │
+│ depositAmount│ │ endTime     │ │ reason       │ │ bookingDate  │   │
+│ duration     │ │ breakStart  │ │ isRecurring  │ │ depositStatus│   │
+│ isActive     │ │ breakEnd    │ └──────────────┘ │ status       │   │
+└──────────────┘ └─────────────┘                  └──────────────┘   │
+                                                          │           │
+                                                          └───────────┘
+                                                        One-to-Many
 ```
 
-## Schema Definition (Drizzle ORM)
+## Tables
 
-### Users Table
+### 1. Users
+
+**Purpose**: Store tradie account information and Stripe Connect details
+
+**File**: `packages/api/src/db/schema/users.ts`
 
 ```typescript
-// api/src/db/schema/users.ts
-import { pgTable, text, boolean, timestamp } from 'drizzle-orm/pg-core'
-import { createId } from '@paralleldrive/cuid2'
-
 export const users = pgTable('users', {
-  id: text('id').primaryKey().$defaultFn(() => createId()),
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  // Identity
   email: text('email').notNull().unique(),
-  emailVerified: boolean('email_verified').default(false).notNull(),
-  name: text('name'),
-  image: text('image'),
+  emailVerified: boolean('email_verified').default(false),
+  name: text('name').notNull(),
   businessName: text('business_name'),
-  slug: text('slug').unique(),
-  phone: text('phone'),
-  address: text('address'),
-  
+  slug: text('slug').notNull().unique(), // URL-friendly username
+
   // Stripe Connect
   stripeAccountId: text('stripe_account_id').unique(),
-  stripeOnboarded: boolean('stripe_onboarded').default(false).notNull(),
-  
+  stripeOnboarded: boolean('stripe_onboarded').default(false),
+  stripeFeePercentage: text('stripe_fee_percentage').default('2.5'),
+
+  // Auth
+  passwordHash: text('password_hash'),
+
+  // Profile
+  phone: text('phone'),
+  avatar: text('avatar'),
+  timezone: text('timezone').default('Australia/Sydney'),
+
+  // Status
+  isActive: boolean('is_active').default(true),
+
   // Timestamps
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
-
-export type User = typeof users.$inferSelect
-export type NewUser = typeof users.$inferInsert
+});
 ```
 
-### Services Table
+**Indexes**:
+- `email` (unique)
+- `slug` (unique)
+- `stripeAccountId` (unique)
+
+---
+
+### 2. Services
+
+**Purpose**: Store service offerings by tradies
+
+**File**: `packages/api/src/db/schema/services.ts`
 
 ```typescript
-// api/src/db/schema/services.ts
-import { pgTable, text, integer, decimal, timestamp } from 'drizzle-orm/pg-core'
-import { createId } from '@paralleldrive/cuid2'
-import { users } from './users'
-
 export const services = pgTable('services', {
-  id: text('id').primaryKey().$defaultFn(() => createId()),
-  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+
   // Service details
   name: text('name').notNull(),
   description: text('description'),
-  durationMinutes: integer('duration_minutes').notNull().default(60),
-  
-  // Deposit configuration
-  depositType: text('deposit_type', { enum: ['percentage', 'fixed'] }).notNull().default('percentage'),
-  depositAmount: decimal('deposit_amount', { precision: 10, scale: 2 }).notNull(),
-  
-  // Pricing (optional - for full amount display)
-  estimatedPrice: decimal('estimated_price', { precision: 10, scale: 2 }),
-  
-  // Active status
-  isActive: boolean('is_active').default(true).notNull(),
-  
+  duration: integer('duration').notNull(), // Minutes
+
+  // Pricing - NEW: depositType field added
+  depositAmount: integer('deposit_amount').notNull(), // Cents (or % if depositType='percentage')
+  depositType: text('deposit_type', { enum: ['percentage', 'fixed'] })
+    .default('fixed')
+    .notNull(),
+  depositPercentage: integer('deposit_percentage'), // Deprecated
+  fullPrice: integer('full_price'), // Cents
+
+  // Settings
+  isActive: boolean('is_active').default(true),
+  requiresApproval: boolean('requires_approval').default(false),
+
   // Timestamps
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
-
-export type Service = typeof services.$inferSelect
-export type NewService = typeof services.$inferInsert
+});
 ```
 
-### Availability Table
+**Indexes**:
+- `userId`
+- `isActive`
+
+**Notes**:
+- All amounts stored in **cents** for precision
+- `depositType='percentage'`: `depositAmount` is percentage (e.g., 25 = 25%)
+- `depositType='fixed'`: `depositAmount` is amount in cents
+- `depositPercentage` deprecated in favor of `depositType` system
+
+---
+
+### 3. Bookings
+
+**Purpose**: Store customer bookings and payment tracking
+
+**File**: `packages/api/src/db/schema/bookings.ts`
 
 ```typescript
-// api/src/db/schema/availability.ts
-import { pgTable, text, integer, time, jsonb, timestamp } from 'drizzle-orm/pg-core'
-import { createId } from '@paralleldrive/cuid2'
-import { users } from './users'
-
-export const availability = pgTable('availability', {
-  id: text('id').primaryKey().$defaultFn(() => createId()),
-  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  
-  // Day of week (0 = Sunday, 6 = Saturday)
-  dayOfWeek: integer('day_of_week').notNull(),
-  
-  // Time range
-  startTime: time('start_time').notNull(), // e.g., '09:00:00'
-  endTime: time('end_time').notNull(),     // e.g., '17:00:00'
-  
-  // Blocked specific dates (array of ISO dates)
-  blockedDates: jsonb('blocked_dates').$type<string[]>().default([]),
-  
-  // Timestamps
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
-
-export type Availability = typeof availability.$inferSelect
-export type NewAvailability = typeof availability.$inferInsert
-```
-
-### Bookings Table
-
-```typescript
-// api/src/db/schema/bookings.ts
-import { pgTable, text, date, time, decimal, timestamp } from 'drizzle-orm/pg-core'
-import { createId } from '@paralleldrive/cuid2'
-import { users } from './users'
-import { services } from './services'
-
 export const bookings = pgTable('bookings', {
-  id: text('id').primaryKey().$defaultFn(() => createId()),
-  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  serviceId: text('service_id').references(() => services.id, { onDelete: 'restrict' }).notNull(),
-  
-  // Customer information
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  serviceId: uuid('service_id').notNull().references(() => services.id, { onDelete: 'cascade' }),
+
+  // Customer details - NEW: customerAddress added, customerPhone now required
   customerName: text('customer_name').notNull(),
   customerEmail: text('customer_email').notNull(),
-  customerPhone: text('customer_phone').notNull(),
-  customerAddress: text('customer_address').notNull(),
-  
+  customerPhone: text('customer_phone').notNull(), // Was optional, now required
+  customerAddress: text('customer_address'), // NEW: optional field
+
   // Booking details
-  bookingDate: date('booking_date').notNull(),
-  bookingTime: time('booking_time').notNull(),
-  
-  // Payment information
-  depositAmount: decimal('deposit_amount', { precision: 10, scale: 2 }).notNull(),
-  totalAmount: decimal('total_amount', { precision: 10, scale: 2 }),
-  depositStatus: text('deposit_status', { 
-    enum: ['pending', 'paid', 'failed', 'refunded'] 
-  }).notNull().default('pending'),
-  
-  // Stripe references
+  bookingDate: timestamp('booking_date').notNull(), // Stored in UTC
+  duration: integer('duration').notNull(), // Minutes
+  notes: text('notes'),
+
+  // Payment - NEW: depositStatus field added
+  depositAmount: integer('deposit_amount').notNull(), // Cents
+  depositStatus: text('deposit_status', {
+    enum: ['pending', 'paid', 'failed', 'refunded']
+  }).default('pending').notNull(), // NEW: separate payment status
+  status: text('status', {
+    enum: ['pending', 'confirmed', 'cancelled', 'completed', 'refunded']
+  }).default('pending').notNull(),
+
+  // Stripe
   stripePaymentIntentId: text('stripe_payment_intent_id').unique(),
-  stripeCustomerId: text('stripe_customer_id'),
-  stripePaymentMethodId: text('stripe_payment_method_id'),
-  
-  // Booking status
-  status: text('status', { 
-    enum: ['pending', 'confirmed', 'completed', 'cancelled', 'refunded'] 
-  }).notNull().default('pending'),
-  
-  // Notes
-  customerNotes: text('customer_notes'),
-  tradieNotes: text('tradie_notes'),
-  
-  // Refund information
-  refundAmount: decimal('refund_amount', { precision: 10, scale: 2 }),
-  refundedAt: timestamp('refunded_at'),
-  
+  stripeChargeId: text('stripe_charge_id'),
+
+  // Metadata
+  metadata: jsonb('metadata'), // Flexible JSON data
+
   // Timestamps
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-  completedAt: timestamp('completed_at'),
-})
-
-export type Booking = typeof bookings.$inferSelect
-export type NewBooking = typeof bookings.$inferInsert
+});
 ```
 
-### Better Auth Tables
+**Indexes** (NEW - Added in migration):
+- `userId`
+- `bookingDate`
+- `status`
+- `stripePaymentIntentId`
+
+**Status Flow**:
+```
+pending → confirmed → completed
+   ↓          ↓
+cancelled  cancelled
+   ↓
+refunded
+```
+
+**Deposit Status Flow**:
+```
+pending → paid
+   ↓        ↓
+failed  refunded
+```
+
+**Notes**:
+- `userId` = tradie (service owner), NOT customer
+- `bookingDate` stored in UTC, convert using user's timezone
+- `depositStatus` tracks payment, `status` tracks booking lifecycle
+
+---
+
+### 4. Availability
+
+**Purpose**: Define tradie availability rules by day of week
+
+**File**: `packages/api/src/db/schema/availability.ts`
 
 ```typescript
-// api/src/db/schema/auth.ts
-import { pgTable, text, boolean, integer, timestamp } from 'drizzle-orm/pg-core'
-import { users } from './users'
+export const availability = pgTable('availability', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
 
-export const accounts = pgTable('accounts', {
-  id: text('id').primaryKey(),
-  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  type: text('type').notNull(),
-  provider: text('provider').notNull(),
-  providerAccountId: text('provider_account_id').notNull(),
-  refresh_token: text('refresh_token'),
-  access_token: text('access_token'),
-  expires_at: integer('expires_at'),
-  token_type: text('token_type'),
-  scope: text('scope'),
-  id_token: text('id_token'),
-  session_state: text('session_state'),
-})
+  // Day and time
+  dayOfWeek: text('day_of_week', {
+    enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+  }).notNull(),
+  startTime: time('start_time').notNull(), // HH:MM format
+  endTime: time('end_time').notNull(),
 
-export const sessions = pgTable('sessions', {
-  id: text('id').primaryKey(),
-  sessionToken: text('session_token').notNull().unique(),
-  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  expires: timestamp('expires').notNull(),
-})
+  // Break times (optional)
+  breakStart: time('break_start'),
+  breakEnd: time('break_end'),
 
-export const verificationTokens = pgTable('verification_tokens', {
-  identifier: text('identifier').notNull(),
-  token: text('token').notNull().unique(),
-  expires: timestamp('expires').notNull(),
-})
+  // Slot configuration
+  slotDuration: integer('slot_duration').default(30), // Minutes per slot
+
+  // Timestamps
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
 ```
 
-## Database Indexes
+**Indexes** (NEW - Added in migration):
+- `userId` + `dayOfWeek` (composite)
+
+**Helper Functions**:
+```typescript
+// Convert JS day (0-6) to enum
+export function getJSDayOfWeek(jsDay: number): DayOfWeek;
+
+// Convert enum to JS day (0-6)
+export function getDayOfWeekJS(dayOfWeek: DayOfWeek): number;
+```
+
+---
+
+### 5. Blocked Slots
+
+**Purpose**: Block specific dates/times (holidays, personal time, etc.)
+
+**File**: `packages/api/src/db/schema/availability.ts`
 
 ```typescript
-// api/src/db/schema/indexes.ts
-import { index } from 'drizzle-orm/pg-core'
-import { users, services, availability, bookings } from './schema'
+export const blockedSlots = pgTable('blocked_slots', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
 
-// User indexes
-export const emailIdx = index('email_idx').on(users.email)
-export const slugIdx = index('slug_idx').on(users.slug)
-export const stripeAccountIdx = index('stripe_account_idx').on(users.stripeAccountId)
+  // Blocked time
+  startTime: timestamp('start_time').notNull(),
+  endTime: timestamp('end_time').notNull(),
 
-// Service indexes
-export const serviceUserIdx = index('service_user_idx').on(services.userId)
-export const serviceActiveIdx = index('service_active_idx').on(services.isActive)
+  // Reason
+  reason: text('reason'),
+  isRecurring: text('is_recurring').default('false'), // 'false', 'weekly', 'monthly'
 
-// Availability indexes
-export const availabilityUserIdx = index('availability_user_idx').on(availability.userId)
-export const availabilityDayIdx = index('availability_day_idx').on(availability.dayOfWeek)
-
-// Booking indexes
-export const bookingUserIdx = index('booking_user_idx').on(bookings.userId)
-export const bookingDateIdx = index('booking_date_idx').on(bookings.bookingDate)
-export const bookingStatusIdx = index('booking_status_idx').on(bookings.status)
-export const bookingDepositStatusIdx = index('booking_deposit_status_idx').on(bookings.depositStatus)
+  // Timestamps
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
 ```
 
-## Migrations
+**Indexes** (NEW - Added in migration):
+- `userId` + `startTime` + `endTime` (composite)
 
-### Initial Migration
+---
 
-```sql
--- migrations/0001_initial_schema.sql
+## Relations
 
--- Users table
-CREATE TABLE users (
-  id TEXT PRIMARY KEY,
-  email TEXT NOT NULL UNIQUE,
-  email_verified BOOLEAN DEFAULT false NOT NULL,
-  name TEXT,
-  image TEXT,
-  business_name TEXT,
-  slug TEXT UNIQUE,
-  phone TEXT,
-  address TEXT,
-  stripe_account_id TEXT UNIQUE,
-  stripe_onboarded BOOLEAN DEFAULT false NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW() NOT NULL,
-  updated_at TIMESTAMP DEFAULT NOW() NOT NULL
-);
+```typescript
+// Services belong to User
+export const servicesRelations = relations(services, ({ one, many }) => ({
+  user: one(users, {
+    fields: [services.userId],
+    references: [users.id],
+  }),
+  bookings: many(bookings),
+}));
 
-CREATE INDEX email_idx ON users(email);
-CREATE INDEX slug_idx ON users(slug);
+// Bookings belong to User and Service
+export const bookingsRelations = relations(bookings, ({ one }) => ({
+  user: one(users, {
+    fields: [bookings.userId],
+    references: [users.id],
+  }),
+  service: one(services, {
+    fields: [bookings.serviceId],
+    references: [services.id],
+  }),
+}));
 
--- Services table
-CREATE TABLE services (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  description TEXT,
-  duration_minutes INTEGER DEFAULT 60 NOT NULL,
-  deposit_type TEXT DEFAULT 'percentage' NOT NULL CHECK (deposit_type IN ('percentage', 'fixed')),
-  deposit_amount DECIMAL(10, 2) NOT NULL,
-  estimated_price DECIMAL(10, 2),
-  is_active BOOLEAN DEFAULT true NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW() NOT NULL,
-  updated_at TIMESTAMP DEFAULT NOW() NOT NULL
-);
+// Availability belongs to User
+export const availabilityRelations = relations(availability, ({ one }) => ({
+  user: one(users, {
+    fields: [availability.userId],
+    references: [users.id],
+  }),
+}));
 
-CREATE INDEX service_user_idx ON services(user_id);
-
--- Availability table
-CREATE TABLE availability (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  day_of_week INTEGER NOT NULL CHECK (day_of_week >= 0 AND day_of_week <= 6),
-  start_time TIME NOT NULL,
-  end_time TIME NOT NULL,
-  blocked_dates JSONB DEFAULT '[]',
-  created_at TIMESTAMP DEFAULT NOW() NOT NULL,
-  updated_at TIMESTAMP DEFAULT NOW() NOT NULL
-);
-
-CREATE INDEX availability_user_idx ON availability(user_id);
-
--- Bookings table
-CREATE TABLE bookings (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  service_id TEXT NOT NULL REFERENCES services(id) ON DELETE RESTRICT,
-  customer_name TEXT NOT NULL,
-  customer_email TEXT NOT NULL,
-  customer_phone TEXT NOT NULL,
-  customer_address TEXT NOT NULL,
-  booking_date DATE NOT NULL,
-  booking_time TIME NOT NULL,
-  deposit_amount DECIMAL(10, 2) NOT NULL,
-  total_amount DECIMAL(10, 2),
-  deposit_status TEXT DEFAULT 'pending' NOT NULL CHECK (deposit_status IN ('pending', 'paid', 'failed', 'refunded')),
-  stripe_payment_intent_id TEXT UNIQUE,
-  stripe_customer_id TEXT,
-  stripe_payment_method_id TEXT,
-  status TEXT DEFAULT 'pending' NOT NULL CHECK (status IN ('pending', 'confirmed', 'completed', 'cancelled', 'refunded')),
-  customer_notes TEXT,
-  tradie_notes TEXT,
-  refund_amount DECIMAL(10, 2),
-  refunded_at TIMESTAMP,
-  created_at TIMESTAMP DEFAULT NOW() NOT NULL,
-  updated_at TIMESTAMP DEFAULT NOW() NOT NULL,
-  completed_at TIMESTAMP
-);
-
-CREATE INDEX booking_user_idx ON bookings(user_id);
-CREATE INDEX booking_date_idx ON bookings(booking_date);
-CREATE INDEX booking_status_idx ON bookings(status);
-
--- Better Auth tables
-CREATE TABLE accounts (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  type TEXT NOT NULL,
-  provider TEXT NOT NULL,
-  provider_account_id TEXT NOT NULL,
-  refresh_token TEXT,
-  access_token TEXT,
-  expires_at INTEGER,
-  token_type TEXT,
-  scope TEXT,
-  id_token TEXT,
-  session_state TEXT,
-  UNIQUE(provider, provider_account_id)
-);
-
-CREATE TABLE sessions (
-  id TEXT PRIMARY KEY,
-  session_token TEXT NOT NULL UNIQUE,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  expires TIMESTAMP NOT NULL
-);
-
-CREATE TABLE verification_tokens (
-  identifier TEXT NOT NULL,
-  token TEXT NOT NULL UNIQUE,
-  expires TIMESTAMP NOT NULL,
-  PRIMARY KEY (identifier, token)
-);
+// Blocked Slots belong to User
+export const blockedSlotsRelations = relations(blockedSlots, ({ one }) => ({
+  user: one(users, {
+    fields: [blockedSlots.userId],
+    references: [users.id],
+  }),
+}));
 ```
+
+---
 
 ## Common Queries
 
-### Get Tradie with Services
+### Get Tradie with Active Services
 
 ```typescript
-// api/src/services/tradieService.ts
-import { db } from '../db'
-import { users, services } from '../db/schema'
-import { eq } from 'drizzle-orm'
-
-export async function getTradieBySlug(slug: string) {
-  return await db.query.users.findFirst({
-    where: eq(users.slug, slug),
-    with: {
-      services: {
-        where: eq(services.isActive, true),
-        orderBy: (services, { asc }) => [asc(services.name)],
-      },
+const tradie = await db.query.users.findFirst({
+  where: eq(users.slug, 'john-plumber'),
+  with: {
+    services: {
+      where: eq(services.isActive, true),
+      orderBy: (services, { asc }) => [asc(services.name)],
     },
-  })
-}
+  },
+});
 ```
 
-### Get Available Slots
+### Get Availability for Specific Day
 
 ```typescript
-export async function getAvailableSlots(userId: string, date: string) {
-  // Get availability rules
-  const dayOfWeek = new Date(date).getDay()
-  
-  const rules = await db.query.availability.findMany({
-    where: eq(availability.userId, userId),
-  })
-  
-  // Get existing bookings for that date
-  const existingBookings = await db.query.bookings.findMany({
-    where: and(
-      eq(bookings.userId, userId),
-      eq(bookings.bookingDate, date),
-      ne(bookings.status, 'cancelled')
+const rules = await db.query.availability.findMany({
+  where: and(
+    eq(availability.userId, userId),
+    eq(availability.dayOfWeek, 'monday')
+  ),
+});
+```
+
+### Get Bookings with Filters
+
+```typescript
+const bookings = await db.query.bookings.findMany({
+  where: and(
+    eq(bookings.userId, userId),
+    eq(bookings.status, 'confirmed'),
+    gte(bookings.bookingDate, startDate),
+    lte(bookings.bookingDate, endDate)
+  ),
+  with: {
+    service: true,
+  },
+  orderBy: (bookings, { desc }) => [desc(bookings.bookingDate)],
+});
+```
+
+### Check Booking Conflicts
+
+```typescript
+const conflicts = await db.query.bookings.findMany({
+  where: and(
+    eq(bookings.userId, userId),
+    or(
+      eq(bookings.status, 'confirmed'),
+      eq(bookings.status, 'pending')
     ),
-  })
-  
-  // Calculate available slots (implementation details...)
-  return calculateSlots(rules, existingBookings)
-}
+    lt(bookings.bookingDate, endTime)
+  ),
+  with: {
+    service: true,
+  },
+});
+
+// Then check for time overlaps in application logic
 ```
 
-### Create Booking
+---
+
+## Validation Schemas
+
+All tables have auto-generated Zod schemas:
 
 ```typescript
-export async function createBooking(data: NewBooking) {
-  return await db.insert(bookings).values(data).returning()
-}
-```
-
-## Data Validation
-
-```typescript
-// api/src/validators/booking.ts
-import { z } from 'zod'
-
-export const createBookingSchema = z.object({
-  serviceId: z.string().cuid2(),
+// Auto-generated from schema
+export const insertBookingSchema = createInsertSchema(bookings, {
   customerName: z.string().min(2).max(100),
   customerEmail: z.string().email(),
-  customerPhone: z.string().regex(/^\+?[1-9]\d{1,14}$/),
-  customerAddress: z.string().min(10),
-  bookingDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  bookingTime: z.string().regex(/^\d{2}:\d{2}:\d{2}$/),
-  customerNotes: z.string().max(500).optional(),
-})
+  customerPhone: z.string().min(10).max(20),
+  customerAddress: z.string().max(500).optional(),
+  bookingDate: z.date().or(z.string()),
+  duration: z.number().min(15).max(480),
+  notes: z.string().max(1000).optional(),
+  depositAmount: z.number().min(100),
+  depositStatus: z.enum(['pending', 'paid', 'failed', 'refunded']).optional(),
+  status: z.enum(['pending', 'confirmed', 'cancelled', 'completed', 'refunded']).optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
 ```
+
+---
+
+## Migrations
+
+### Latest Migration
+
+**File**: `packages/api/drizzle/0001_implementation_plan_fixes.sql`
+
+**Changes**:
+- ✅ Added `depositType` to services table
+- ✅ Added `depositStatus` to bookings table
+- ✅ Made `customerPhone` required
+- ✅ Added optional `customerAddress` to bookings
+- ✅ Created 8 performance indexes
+
+### Running Migrations
+
+```bash
+# Local development
+cd packages/api
+npm run db:migrate
+
+# Docker Compose
+docker-compose run --rm migrate
+
+# Docker Swarm
+docker service create --name peepopay-migrate \
+  --network peepopay-network \
+  --env DATABASE_URL="..." \
+  --restart-condition none \
+  peepopay-api:latest npm run db:migrate
+```
+
+See [MIGRATIONS_DOCKER.md](../../MIGRATIONS_DOCKER.md) for complete guide.
+
+---
+
+## Performance Indexes
+
+```sql
+-- Availability queries
+CREATE INDEX idx_availability_user_day ON availability(user_id, day_of_week);
+
+-- Blocked slots queries
+CREATE INDEX idx_blocked_slots_user_date ON blocked_slots(user_id, start_time, end_time);
+
+-- Booking queries
+CREATE INDEX idx_bookings_user_date ON bookings(user_id, booking_date);
+CREATE INDEX idx_bookings_status ON bookings(status);
+CREATE INDEX idx_bookings_payment_intent ON bookings(stripe_payment_intent_id);
+
+-- Service queries
+CREATE INDEX idx_services_user_active ON services(user_id, is_active);
+
+-- User lookups
+CREATE INDEX idx_users_slug ON users(slug);
+```
+
+---
+
+## Database Tools
+
+### Drizzle Studio
+
+Interactive database browser:
+
+```bash
+cd packages/api
+npm run db:studio
+# Opens at http://localhost:4983
+```
+
+### Generate Migration
+
+```bash
+cd packages/api
+npm run db:generate
+```
+
+### Push Schema (Dev Only)
+
+```bash
+cd packages/api
+npm run db:push
+```
+
+---
+
+## Type Safety
+
+All database types are automatically inferred:
+
+```typescript
+import { type User, type Service, type Booking } from '@/db/schema';
+
+// TypeScript knows all fields and types
+const user: User = await db.query.users.findFirst(...);
+const service: Service = await db.query.services.findFirst(...);
+const booking: Booking = await db.query.bookings.findFirst(...);
+```
+
+---
 
 ## Next Steps
 
 - [Payment Flows →](./04-payment-flows.md)
-- [API Routes →](../api/routes.md)
+- [API Endpoints →](../api/routes.md)
+- [Migration Guide →](../../MIGRATIONS_DOCKER.md)

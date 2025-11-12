@@ -421,6 +421,8 @@ Caches automatically invalidate on:
 
 ## 📊 Database Management
 
+### Local Development
+
 ```bash
 # Generate migration from schema changes
 npm run db:generate
@@ -434,6 +436,23 @@ npm run db:push
 # Open Drizzle Studio
 npm run db:studio
 ```
+
+### Docker Environments
+
+```bash
+# Docker Compose
+docker-compose run --rm migrate
+
+# Docker Swarm (production)
+# See ../../MIGRATIONS_DOCKER.md for full guide
+docker service create --name peepopay-migrate \
+  --network peepopay-network \
+  --env DATABASE_URL="..." \
+  --restart-condition none \
+  peepopay-api:latest npm run db:migrate
+```
+
+See [MIGRATIONS_DOCKER.md](../../MIGRATIONS_DOCKER.md) for comprehensive Docker migration guide.
 
 ## 🐳 Docker
 

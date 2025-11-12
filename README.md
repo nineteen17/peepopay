@@ -152,9 +152,12 @@ npm run docker:logs    # View Docker logs
 
 # Database commands (from packages/api)
 npm run db:generate    # Generate Drizzle migrations
-npm run db:migrate     # Run migrations
+npm run db:migrate     # Run migrations (local dev)
 npm run db:push        # Push schema to database
 npm run db:studio      # Open Drizzle Studio
+
+# Docker migrations (see MIGRATIONS_DOCKER.md)
+docker-compose run --rm migrate  # Run migrations in Docker
 
 # Type safety commands
 npm run sync-types     # Sync API types to frontends
@@ -186,7 +189,9 @@ Comprehensive documentation is available in the [`Docs/`](./Docs) directory:
 
 - [Tech Stack](./Docs/architecture/01-tech-stack.md) - Technology decisions and rationale
 - [System Design](./Docs/architecture/02-system-design.md) - Architecture overview
-- [Database Schema](./Docs/architecture/03-database-schema.md) - Drizzle ORM models
+- [Database Schema](./Docs/architecture/03-database-schema.md) - Complete schema reference with examples
+- [Docker Migrations](./MIGRATIONS_DOCKER.md) - Running migrations in Docker Compose & Swarm
+- [Quick Migration Guide](./QUICKSTART_MIGRATION.md) - Run the latest migration now
 
 ### Key Concepts
 
