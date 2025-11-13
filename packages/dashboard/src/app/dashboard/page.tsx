@@ -7,23 +7,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/auth-context';
 import { Calendar, DollarSign, Package, TrendingUp, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
-
-interface Service {
-  id: string;
-  name: string;
-  price: number;
-  duration: number;
-}
-
-interface Booking {
-  id: string;
-  serviceName: string;
-  customerName: string;
-  customerEmail: string;
-  scheduledFor: string;
-  status: string;
-  totalAmount: number;
-}
+import type { Service, Booking } from '@/types/api';
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -56,8 +40,8 @@ export default function DashboardPage() {
     completedBookings: bookings.filter((b) => b.status === 'completed').length,
     totalRevenue: bookings
       .filter((b) => b.status === 'completed')
-      .reduce((sum, b) => sum + b.totalAmount, 0),
-    activeServices: services.filter((s) => s).length,
+      .reduce((sum, b) => sum + b.depositAmount, 0),
+    activeServices: services.filter((s) => s.isActive).length,
   };
 
   const getStatusBadge = (status: string) => {
@@ -178,21 +162,21 @@ export default function DashboardPage() {
                     <div className="flex flex-col">
                       <div className="font-medium">{booking.customerName}</div>
                       <div className="text-sm text-muted-foreground">
-                        {booking.serviceName}
+                        Service ID: {booking.serviceId}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
                       <div className="text-sm font-medium">
-                        {format(new Date(booking.scheduledFor), 'MMM dd, yyyy')}
+                        {format(new Date(booking.bookingDate), 'MMM dd, yyyy')}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {format(new Date(booking.scheduledFor), 'h:mm a')}
+                        {format(new Date(booking.bookingDate), 'h:mm a')}
                       </div>
                     </div>
                     <div className="text-sm font-medium">
-                      ${(booking.totalAmount / 100).toFixed(2)}
+                      ${(booking.depositAmount / 100).toFixed(2)}
                     </div>
                     {getStatusBadge(booking.status)}
                   </div>

@@ -78,7 +78,7 @@ export function DashboardNav() {
               <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                 <Avatar className="h-10 w-10">
                   <AvatarFallback className="bg-primary text-primary-foreground">
-                    {user ? getInitials(user.name) : 'U'}
+                    {user ? getInitials(user.name || 'User') : 'U'}
                   </AvatarFallback>
                 </Avatar>
               </Button>

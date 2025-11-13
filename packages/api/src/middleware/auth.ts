@@ -17,17 +17,18 @@ export async function requireAuth(
   req: AuthRequest,
   res: Response,
   next: NextFunction
-) {
+): Promise<void> {
   try {
     const session = await auth.api.getSession({
       headers: req.headers as any,
     });
 
     if (!session) {
-      return res.status(401).json({
+      res.status(401).json({
         error: 'Unauthorized',
         message: 'You must be logged in to access this resource',
       });
+      return;
     }
 
     req.user = session.user;
@@ -35,7 +36,7 @@ export async function requireAuth(
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);
-    return res.status(401).json({
+    res.status(401).json({
       error: 'Unauthorized',
       message: 'Invalid or expired session',
     });
@@ -47,9 +48,9 @@ export async function requireAuth(
  */
 export async function optionalAuth(
   req: AuthRequest,
-  res: Response,
+  _res: Response,
   next: NextFunction
-) {
+): Promise<void> {
   try {
     const session = await auth.api.getSession({
       headers: req.headers as any,

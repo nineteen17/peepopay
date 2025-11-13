@@ -9,31 +9,324 @@ import { OpenAPIRegistry, OpenApiGeneratorV3 } from '@asteasolutions/zod-to-open
 import { writeFileSync } from 'fs';
 import { resolve } from 'path';
 import { z } from 'zod';
-import {
-  insertBookingSchema,
-  selectBookingSchema,
-  insertServiceSchema,
-  selectServiceSchema,
-  insertUserSchema,
-  selectUserSchema,
-} from '../db/schema/index.js';
+import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
+
+// Extend Zod with OpenAPI
+extendZodWithOpenApi(z);
 
 const registry = new OpenAPIRegistry();
 
+// Define OpenAPI-compatible schemas based on the database schemas
+const serviceSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid(),
+  name: z.string(),
+  description: z.string().nullable(),
+  duration: z.number(),
+  depositAmount: z.number(),
+  depositType: z.enum(['percentage', 'fixed']),
+  depositPercentage: z.number().nullable(),
+  fullPrice: z.number().nullable(),
+  isActive: z.boolean().nullable(),
+  requiresApproval: z.boolean().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+}).openapi({ description: 'Service entity' });
+
+const newServiceSchema = z.object({
+  name: z.string().min(3).max(200),
+  description: z.string().max(1000).optional(),
+  duration: z.number().min(15).max(480),
+  depositAmount: z.number().min(100),
+  depositType: z.enum(['percentage', 'fixed']).optional(),
+  depositPercentage: z.number().min(1).max(100).optional(),
+  fullPrice: z.number().min(100).optional(),
+  isActive: z.boolean().optional(),
+  requiresApproval: z.boolean().optional(),
+}).openapi({ description: 'Service creation payload' });
+
+const bookingSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid(),
+  serviceId: z.string().uuid(),
+  customerName: z.string(),
+  customerEmail: z.string().email(),
+  customerPhone: z.string(),
+  customerAddress: z.string().nullable(),
+  bookingDate: z.string(),
+  duration: z.number(),
+  notes: z.string().nullable(),
+  depositAmount: z.number(),
+  depositStatus: z.enum(['pending', 'paid', 'failed', 'refunded']),
+  status: z.enum(['pending', 'confirmed', 'cancelled', 'completed', 'refunded']),
+  stripePaymentIntentId: z.string().nullable(),
+  stripeClientSecret: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+}).openapi({ description: 'Booking entity' });
+
+const newBookingSchema = z.object({
+  serviceId: z.string().uuid(),
+  customerName: z.string().min(2).max(100),
+  customerEmail: z.string().email(),
+  customerPhone: z.string().min(10).max(20),
+  customerAddress: z.string().max(500).optional(),
+  bookingDate: z.string(),
+  notes: z.string().max(1000).optional(),
+}).openapi({ description: 'Booking creation payload' });
+
+const userSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().email(),
+  name: z.string(),
+  slug: z.string(),
+  stripeAccountId: z.string().nullable(),
+  stripeOnboardingComplete: z.boolean(),
+  businessName: z.string().nullable(),
+  businessAddress: z.string().nullable(),
+  businessPhone: z.string().nullable(),
+  businessWebsite: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+}).openapi({ description: 'User entity' });
+
 // Register component schemas
-registry.register('Booking', selectBookingSchema);
-registry.register('NewBooking', insertBookingSchema);
-registry.register('Service', selectServiceSchema);
-registry.register('NewService', insertServiceSchema);
-registry.register('User', selectUserSchema);
+registry.register('Booking', bookingSchema);
+registry.register('NewBooking', newBookingSchema);
+registry.register('Service', serviceSchema);
+registry.register('NewService', newServiceSchema);
+registry.register('User', userSchema);
 
 // Error response schema
 const errorResponseSchema = z.object({
   error: z.string(),
   message: z.string().optional(),
-});
+}).openapi({ description: 'Error response' });
 
 registry.register('Error', errorResponseSchema);
+
+// ==================== AUTH ENDPOINTS ====================
+
+// POST /api/auth/login
+registry.registerPath({
+  method: 'post',
+  path: '/api/auth/login',
+  tags: ['Authentication'],
+  summary: 'Login with email and password',
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            email: z.string().email(),
+            password: z.string().min(6),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Login successful',
+      content: {
+        'application/json': {
+          schema: z.object({
+            user: userSchema,
+          }),
+        },
+      },
+    },
+    401: {
+      description: 'Invalid credentials',
+      content: {
+        'application/json': {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+// POST /api/auth/register
+registry.registerPath({
+  method: 'post',
+  path: '/api/auth/register',
+  tags: ['Authentication'],
+  summary: 'Register new user',
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            email: z.string().email(),
+            password: z.string().min(6),
+            name: z.string().min(2).max(100),
+            slug: z.string().min(3).max(50),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: 'Registration successful',
+      content: {
+        'application/json': {
+          schema: z.object({
+            user: userSchema,
+          }),
+        },
+      },
+    },
+    400: {
+      description: 'Invalid request or user already exists',
+      content: {
+        'application/json': {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+// POST /api/auth/logout
+registry.registerPath({
+  method: 'post',
+  path: '/api/auth/logout',
+  tags: ['Authentication'],
+  summary: 'Logout current user',
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: 'Logout successful',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.boolean(),
+          }),
+        },
+      },
+    },
+  },
+});
+
+// GET /api/auth/google
+registry.registerPath({
+  method: 'get',
+  path: '/api/auth/google',
+  tags: ['Authentication'],
+  summary: 'Google OAuth redirect',
+  responses: {
+    302: {
+      description: 'Redirect to Google OAuth',
+    },
+  },
+});
+
+// ==================== USER ENDPOINTS ====================
+
+// GET /api/users/me
+registry.registerPath({
+  method: 'get',
+  path: '/api/users/me',
+  tags: ['Users'],
+  summary: 'Get current user profile',
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: 'User profile retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            user: userSchema,
+          }),
+        },
+      },
+    },
+    401: {
+      description: 'Unauthorized',
+      content: {
+        'application/json': {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+// PUT /api/users/me
+registry.registerPath({
+  method: 'put',
+  path: '/api/users/me',
+  tags: ['Users'],
+  summary: 'Update user profile',
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            name: z.string().min(2).max(100).optional(),
+            slug: z.string().min(3).max(50).optional(),
+            businessName: z.string().max(200).optional(),
+            businessAddress: z.string().max(500).optional(),
+            businessPhone: z.string().max(20).optional(),
+            businessWebsite: z.string().url().optional(),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Profile updated successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            user: userSchema,
+          }),
+        },
+      },
+    },
+    400: {
+      description: 'Invalid request',
+      content: {
+        'application/json': {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+// POST /api/users/stripe/onboard
+registry.registerPath({
+  method: 'post',
+  path: '/api/users/stripe/onboard',
+  tags: ['Users'],
+  summary: 'Start Stripe onboarding process',
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: 'Onboarding URL generated successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            url: z.string().url(),
+          }),
+        },
+      },
+    },
+    400: {
+      description: 'User already onboarded or invalid request',
+      content: {
+        'application/json': {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+  },
+});
 
 // ==================== SERVICE ENDPOINTS ====================
 
@@ -50,7 +343,7 @@ registry.registerPath({
       content: {
         'application/json': {
           schema: z.object({
-            services: z.array(selectServiceSchema),
+            services: z.array(serviceSchema),
           }),
         },
       },
@@ -83,7 +376,7 @@ registry.registerPath({
       content: {
         'application/json': {
           schema: z.object({
-            services: z.array(selectServiceSchema),
+            services: z.array(serviceSchema),
           }),
         },
       },
@@ -108,7 +401,7 @@ registry.registerPath({
       content: {
         'application/json': {
           schema: z.object({
-            service: selectServiceSchema,
+            service: serviceSchema,
           }),
         },
       },
@@ -135,7 +428,7 @@ registry.registerPath({
     body: {
       content: {
         'application/json': {
-          schema: insertServiceSchema.omit({ userId: true }),
+          schema: newServiceSchema,
         },
       },
     },
@@ -146,7 +439,7 @@ registry.registerPath({
       content: {
         'application/json': {
           schema: z.object({
-            service: selectServiceSchema,
+            service: serviceSchema,
           }),
         },
       },
@@ -184,7 +477,7 @@ registry.registerPath({
     body: {
       content: {
         'application/json': {
-          schema: insertServiceSchema.partial().omit({ userId: true }),
+          schema: newServiceSchema.partial(),
         },
       },
     },
@@ -195,7 +488,7 @@ registry.registerPath({
       content: {
         'application/json': {
           schema: z.object({
-            service: selectServiceSchema,
+            service: serviceSchema,
           }),
         },
       },
@@ -268,7 +561,7 @@ registry.registerPath({
       content: {
         'application/json': {
           schema: z.object({
-            bookings: z.array(selectBookingSchema),
+            bookings: z.array(bookingSchema),
           }),
         },
       },
@@ -294,7 +587,7 @@ registry.registerPath({
       content: {
         'application/json': {
           schema: z.object({
-            booking: selectBookingSchema,
+            booking: bookingSchema,
           }),
         },
       },
@@ -320,7 +613,7 @@ registry.registerPath({
     body: {
       content: {
         'application/json': {
-          schema: insertBookingSchema.omit({ userId: true }),
+          schema: newBookingSchema,
         },
       },
     },
@@ -331,7 +624,7 @@ registry.registerPath({
       content: {
         'application/json': {
           schema: z.object({
-            booking: selectBookingSchema,
+            booking: bookingSchema,
             clientSecret: z.string().describe('Stripe payment intent client secret'),
           }),
         },
@@ -375,7 +668,7 @@ registry.registerPath({
       content: {
         'application/json': {
           schema: z.object({
-            booking: selectBookingSchema,
+            booking: bookingSchema,
           }),
         },
       },
@@ -409,7 +702,7 @@ registry.registerPath({
       content: {
         'application/json': {
           schema: z.object({
-            booking: selectBookingSchema,
+            booking: bookingSchema,
           }),
         },
       },
@@ -477,6 +770,14 @@ registry.registerPath({
 });
 
 // Generate OpenAPI document
+// Register security scheme
+registry.registerComponent('securitySchemes', 'bearerAuth', {
+  type: 'http',
+  scheme: 'bearer',
+  bearerFormat: 'JWT',
+  description: 'JWT token from Better Auth',
+});
+
 const generator = new OpenApiGeneratorV3(registry.definitions);
 
 const openApiDocument = generator.generateDocument({
@@ -506,6 +807,14 @@ const openApiDocument = generator.generateDocument({
   ],
   tags: [
     {
+      name: 'Authentication',
+      description: 'User authentication and session management',
+    },
+    {
+      name: 'Users',
+      description: 'User profile and account management',
+    },
+    {
       name: 'Services',
       description: 'Service management endpoints',
     },
@@ -518,16 +827,6 @@ const openApiDocument = generator.generateDocument({
       description: 'Health check endpoints',
     },
   ],
-  components: {
-    securitySchemes: {
-      bearerAuth: {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        description: 'JWT token from Better Auth',
-      },
-    },
-  },
 });
 
 // Write to file

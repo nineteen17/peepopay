@@ -57,10 +57,12 @@ Express.js backend with PostgreSQL, Redis, RabbitMQ, and Stripe Connect integrat
 | **Framework** | Express.js 4 |
 | **Language** | TypeScript 5 |
 | **Database** | PostgreSQL 16 |
-| **ORM** | Drizzle ORM |
+| **ORM** | Drizzle ORM 0.44.7+ |
+| **Validation** | Zod + drizzle-zod |
 | **Cache** | Redis 7 |
 | **Queue** | RabbitMQ 3 |
 | **Auth** | Better Auth |
+| **API Docs** | OpenAPI 3.0 + Swagger UI |
 | **Payments** | Stripe Connect |
 | **Email** | Resend + React Email |
 
@@ -107,6 +109,10 @@ packages/api/
 │
 ├── scripts/
 │   └── sync-types.ts        # Auto-sync types to frontends
+│
+├── .generated/
+│   ├── api-types.ts         # Auto-generated TypeScript types
+│   └── checksum.json        # Validation checksums
 │
 ├── openapi.json             # Auto-generated OpenAPI 3.0 spec
 ├── Dockerfile               # Production build
@@ -246,11 +252,15 @@ npm run sync-types
 ```
 
 **What happens automatically:**
-1. ✅ Generate OpenAPI spec from Zod schemas
-2. ✅ Generate TypeScript types from OpenAPI
-3. ✅ Copy types to Dashboard (`packages/dashboard/src/types/api.ts`)
-4. ✅ Copy types to Widget (`packages/widget/src/types/api.ts`)
-5. ✅ Generate checksums for validation
+1. ✅ Generate OpenAPI spec from Zod schemas via `src/openapi/generator.ts`
+2. ✅ Generate TypeScript types from OpenAPI using `openapi-typescript`
+3. ✅ Add helper types and convenience exports (BookingStatus, ServiceListResponse, etc.)
+4. ✅ Copy types to Dashboard (`packages/dashboard/src/types/api.ts`)
+5. ✅ Copy types to Widget (`packages/widget/src/types/api.ts`)
+6. ✅ Generate MD5 checksums for validation
+7. ✅ Ensure 100% API endpoint coverage with type safety
+
+**Coverage:** 14 endpoints, 6 schemas, 100% dashboard integration
 
 **Dashboard/Widget developers:** Pull latest changes to get fresh API types after API updates.
 
@@ -262,9 +272,12 @@ See [TYPE_SAFETY_SETUP.md](../../TYPE_SAFETY_SETUP.md) for details.
 
 ```
 POST   /api/auth/register        # Register new user
-POST   /api/auth/login           # Login
-GET    /api/auth/session         # Get current session
-POST   /api/auth/logout          # Logout
+POST   /api/auth/login           # Login with email/password
+POST   /api/auth/logout          # Logout user session
+GET    /api/auth/google          # Google OAuth redirect
+GET    /api/users/me             # Get current user profile
+PUT    /api/users/me             # Update user profile
+POST   /api/users/stripe/onboard # Start Stripe onboarding process
 ```
 
 ### Services
@@ -282,10 +295,10 @@ DELETE /api/services/:id         # Delete service (authenticated)
 
 ```
 GET    /api/bookings             # Get user's bookings (authenticated)
-GET    /api/bookings/:id         # Get single booking (authenticated)
+GET    /api/bookings/:id         # Get single booking (authenticated)  
 POST   /api/bookings             # Create booking (public from widget)
-PUT    /api/bookings/:id/status  # Update booking status (authenticated)
-DELETE /api/bookings/:id         # Cancel booking (authenticated)
+PATCH  /api/bookings/:id/status  # Update booking status (authenticated)
+POST   /api/bookings/:id/cancel  # Cancel booking (authenticated)
 ```
 
 ### Stripe

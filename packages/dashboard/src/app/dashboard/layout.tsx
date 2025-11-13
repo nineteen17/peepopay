@@ -2,20 +2,28 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { AuthProvider, useAuth } from '@/contexts/auth-context';
+import { useAuth } from '@/hooks/queries';
 import { DashboardNav } from '@/components/dashboard-nav';
 
-function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { data: authData, isLoading, error } = useAuth();
   const router = useRouter();
+  const user = authData?.user;
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!isLoading && (!user || error)) {
       router.push('/auth/login');
     }
-  }, [user, loading, router]);
+  }, [user, isLoading, error, router]);
 
-  if (loading) {
+  useEffect(() => {
+    // Check if user needs to complete Stripe onboarding
+    if (user && !user.stripeOnboardingComplete && !window.location.pathname.includes('/onboarding')) {
+      router.push('/onboarding');
+    }
+  }, [user, router]);
+
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-muted-foreground">Loading...</div>
@@ -23,13 +31,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user) {
-    return null;
-  }
-
-  // Check if user needs to complete Stripe onboarding
-  if (!user.stripeOnboardingComplete && !window.location.pathname.includes('/onboarding')) {
-    router.push('/onboarding');
+  if (!user || error) {
     return null;
   }
 
@@ -38,13 +40,5 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       <DashboardNav />
       <main className="container mx-auto px-4 py-8">{children}</main>
     </div>
-  );
-}
-
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <AuthProvider>
-      <DashboardLayoutContent>{children}</DashboardLayoutContent>
-    </AuthProvider>
   );
 }

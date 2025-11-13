@@ -1,4 +1,4 @@
-import { Clock, DollarSign } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import type { Service } from '../types/api';
 
 interface ServiceSelectionProps {

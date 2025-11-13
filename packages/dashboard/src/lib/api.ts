@@ -1,3 +1,4 @@
+import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import type {
   User,
   Service,
@@ -8,52 +9,53 @@ import type {
   ServiceResponse,
   BookingListResponse,
   BookingResponse,
+  HealthResponse,
 } from '@/types/api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export class ApiClient {
-  private baseUrl: string;
+  private client: AxiosInstance;
 
   constructor(baseUrl: string = API_URL) {
-    this.baseUrl = baseUrl;
-  }
-
-  private async request<T>(
-    endpoint: string,
-    options?: RequestInit
-  ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
-
-    const response = await fetch(url, {
-      ...options,
+    this.client = axios.create({
+      baseURL: baseUrl,
       headers: {
         'Content-Type': 'application/json',
-        ...options?.headers,
       },
-      credentials: 'include', // Important for auth cookies
+      withCredentials: true, // Important for auth cookies
     });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'An error occurred' }));
-      throw new Error(error.message || 'Request failed');
-    }
+    // Response interceptor for error handling
+    this.client.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        const message = error.response?.data?.message || error.message || 'An error occurred';
+        throw new Error(message);
+      }
+    );
+  }
 
-    return response.json();
+  private async request<T>(endpoint: string, options?: any): Promise<T> {
+    const response: AxiosResponse<T> = await this.client.request({
+      url: endpoint,
+      ...options,
+    });
+    return response.data;
   }
 
   // Auth
   async login(email: string, password: string): Promise<{ user: User }> {
     return this.request<{ user: User }>('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      data: { email, password },
     });
   }
 
   async signup(data: { email: string; password: string; name: string; slug: string }): Promise<{ user: User }> {
     return this.request<{ user: User }>('/api/auth/register', {
       method: 'POST',
-      body: JSON.stringify(data),
+      data,
     });
   }
 
@@ -69,7 +71,7 @@ export class ApiClient {
   async updateProfile(data: Partial<User>): Promise<{ user: User }> {
     return this.request<{ user: User }>('/api/users/me', {
       method: 'PUT',
-      body: JSON.stringify(data),
+      data,
     });
   }
 
@@ -91,14 +93,14 @@ export class ApiClient {
   async createService(data: NewService): Promise<ServiceResponse> {
     return this.request<ServiceResponse>('/api/services', {
       method: 'POST',
-      body: JSON.stringify(data),
+      data,
     });
   }
 
   async updateService(id: string, data: Partial<NewService>): Promise<ServiceResponse> {
     return this.request<ServiceResponse>(`/api/services/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      data,
     });
   }
 
@@ -110,8 +112,9 @@ export class ApiClient {
 
   // Bookings
   async getBookings(params?: { status?: string; from?: string; to?: string }): Promise<BookingListResponse> {
-    const query = new URLSearchParams(params as any).toString();
-    return this.request<BookingListResponse>(`/api/bookings${query ? `?${query}` : ''}`);
+    return this.request<BookingListResponse>('/api/bookings', {
+      params,
+    });
   }
 
   async getBooking(id: string): Promise<BookingResponse> {
@@ -120,15 +123,20 @@ export class ApiClient {
 
   async updateBookingStatus(id: string, status: Booking['status']): Promise<BookingResponse> {
     return this.request<BookingResponse>(`/api/bookings/${id}/status`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
+      method: 'PATCH',
+      data: { status },
     });
   }
 
   async cancelBooking(id: string): Promise<BookingResponse> {
-    return this.request<BookingResponse>(`/api/bookings/${id}`, {
-      method: 'DELETE',
+    return this.request<BookingResponse>(`/api/bookings/${id}/cancel`, {
+      method: 'POST',
     });
+  }
+
+  // Health
+  async getHealth(): Promise<HealthResponse> {
+    return this.request<HealthResponse>('/health');
   }
 }
 

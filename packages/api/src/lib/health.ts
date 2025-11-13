@@ -1,6 +1,7 @@
 import { getRedisClient } from './redis.js';
 import { getChannel } from './queue.js';
 import { db } from '../db/index.js';
+import { sql } from 'drizzle-orm';
 
 export interface HealthCheck {
   status: 'healthy' | 'unhealthy';
@@ -24,7 +25,7 @@ export interface ServiceHealth {
 async function checkDatabase(): Promise<ServiceHealth> {
   const start = Date.now();
   try {
-    await db.execute`SELECT 1`;
+    await db.execute(sql`SELECT 1`);
     return {
       status: 'up',
       responseTime: Date.now() - start,

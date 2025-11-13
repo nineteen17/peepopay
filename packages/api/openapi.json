@@ -1,0 +1,2857 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "version": "1.0.0",
+    "title": "PeepoPay API",
+    "description": "Production-grade booking and payment platform for tradies",
+    "contact": {
+      "name": "API Support",
+      "email": "support@peepopay.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4000",
+      "description": "Development server"
+    },
+    {
+      "url": "https://api.peepopay.com",
+      "description": "Production server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication",
+      "description": "User authentication and session management"
+    },
+    {
+      "name": "Users",
+      "description": "User profile and account management"
+    },
+    {
+      "name": "Services",
+      "description": "Service management endpoints"
+    },
+    {
+      "name": "Bookings",
+      "description": "Booking management endpoints"
+    },
+    {
+      "name": "Health",
+      "description": "Health check endpoints"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT token from Better Auth"
+      }
+    },
+    "schemas": {
+      "Booking": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "serviceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "customerName": {
+            "type": "string"
+          },
+          "customerEmail": {
+            "type": "string",
+            "format": "email"
+          },
+          "customerPhone": {
+            "type": "string"
+          },
+          "customerAddress": {
+            "type": "string",
+            "nullable": true
+          },
+          "bookingDate": {
+            "type": "string"
+          },
+          "duration": {
+            "type": "number"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "depositAmount": {
+            "type": "number"
+          },
+          "depositStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "paid",
+              "failed",
+              "refunded"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "confirmed",
+              "cancelled",
+              "completed",
+              "refunded"
+            ]
+          },
+          "stripePaymentIntentId": {
+            "type": "string",
+            "nullable": true
+          },
+          "stripeClientSecret": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "serviceId",
+          "customerName",
+          "customerEmail",
+          "customerPhone",
+          "customerAddress",
+          "bookingDate",
+          "duration",
+          "notes",
+          "depositAmount",
+          "depositStatus",
+          "status",
+          "stripePaymentIntentId",
+          "stripeClientSecret",
+          "createdAt",
+          "updatedAt"
+        ],
+        "description": "Booking entity"
+      },
+      "NewBooking": {
+        "type": "object",
+        "properties": {
+          "serviceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "customerName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "customerEmail": {
+            "type": "string",
+            "format": "email"
+          },
+          "customerPhone": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 20
+          },
+          "customerAddress": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "bookingDate": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "serviceId",
+          "customerName",
+          "customerEmail",
+          "customerPhone",
+          "bookingDate"
+        ],
+        "description": "Booking creation payload"
+      },
+      "Service": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "duration": {
+            "type": "number"
+          },
+          "depositAmount": {
+            "type": "number"
+          },
+          "depositType": {
+            "type": "string",
+            "enum": [
+              "percentage",
+              "fixed"
+            ]
+          },
+          "depositPercentage": {
+            "type": "number",
+            "nullable": true
+          },
+          "fullPrice": {
+            "type": "number",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "requiresApproval": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "name",
+          "description",
+          "duration",
+          "depositAmount",
+          "depositType",
+          "depositPercentage",
+          "fullPrice",
+          "isActive",
+          "requiresApproval",
+          "createdAt",
+          "updatedAt"
+        ],
+        "description": "Service entity"
+      },
+      "NewService": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "duration": {
+            "type": "number",
+            "minimum": 15,
+            "maximum": 480
+          },
+          "depositAmount": {
+            "type": "number",
+            "minimum": 100
+          },
+          "depositType": {
+            "type": "string",
+            "enum": [
+              "percentage",
+              "fixed"
+            ]
+          },
+          "depositPercentage": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "fullPrice": {
+            "type": "number",
+            "minimum": 100
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "requiresApproval": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "duration",
+          "depositAmount"
+        ],
+        "description": "Service creation payload"
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "stripeAccountId": {
+            "type": "string",
+            "nullable": true
+          },
+          "stripeOnboardingComplete": {
+            "type": "boolean"
+          },
+          "businessName": {
+            "type": "string",
+            "nullable": true
+          },
+          "businessAddress": {
+            "type": "string",
+            "nullable": true
+          },
+          "businessPhone": {
+            "type": "string",
+            "nullable": true
+          },
+          "businessWebsite": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "slug",
+          "stripeAccountId",
+          "stripeOnboardingComplete",
+          "businessName",
+          "businessAddress",
+          "businessPhone",
+          "businessWebsite",
+          "createdAt",
+          "updatedAt"
+        ],
+        "description": "User entity"
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "description": "Error response"
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Login with email and password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 6
+                  }
+                },
+                "required": [
+                  "email",
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
+                        "stripeAccountId": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "stripeOnboardingComplete": {
+                          "type": "boolean"
+                        },
+                        "businessName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "businessAddress": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "businessPhone": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "businessWebsite": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "email",
+                        "name",
+                        "slug",
+                        "stripeAccountId",
+                        "stripeOnboardingComplete",
+                        "businessName",
+                        "businessAddress",
+                        "businessPhone",
+                        "businessWebsite",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "description": "User entity"
+                    }
+                  },
+                  "required": [
+                    "user"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "description": "Error response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Register new user",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 6
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 100
+                  },
+                  "slug": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 50
+                  }
+                },
+                "required": [
+                  "email",
+                  "password",
+                  "name",
+                  "slug"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registration successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
+                        "stripeAccountId": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "stripeOnboardingComplete": {
+                          "type": "boolean"
+                        },
+                        "businessName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "businessAddress": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "businessPhone": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "businessWebsite": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "email",
+                        "name",
+                        "slug",
+                        "stripeAccountId",
+                        "stripeOnboardingComplete",
+                        "businessName",
+                        "businessAddress",
+                        "businessPhone",
+                        "businessWebsite",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "description": "User entity"
+                    }
+                  },
+                  "required": [
+                    "user"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or user already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "description": "Error response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Logout current user",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Logout successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/google": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Google OAuth redirect",
+        "responses": {
+          "302": {
+            "description": "Redirect to Google OAuth"
+          }
+        }
+      }
+    },
+    "/api/users/me": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get current user profile",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User profile retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
+                        "stripeAccountId": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "stripeOnboardingComplete": {
+                          "type": "boolean"
+                        },
+                        "businessName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "businessAddress": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "businessPhone": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "businessWebsite": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "email",
+                        "name",
+                        "slug",
+                        "stripeAccountId",
+                        "stripeOnboardingComplete",
+                        "businessName",
+                        "businessAddress",
+                        "businessPhone",
+                        "businessWebsite",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "description": "User entity"
+                    }
+                  },
+                  "required": [
+                    "user"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "description": "Error response"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Update user profile",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 100
+                  },
+                  "slug": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 50
+                  },
+                  "businessName": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "businessAddress": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "businessPhone": {
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "businessWebsite": {
+                    "type": "string",
+                    "format": "uri"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
+                        "stripeAccountId": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "stripeOnboardingComplete": {
+                          "type": "boolean"
+                        },
+                        "businessName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "businessAddress": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "businessPhone": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "businessWebsite": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "email",
+                        "name",
+                        "slug",
+                        "stripeAccountId",
+                        "stripeOnboardingComplete",
+                        "businessName",
+                        "businessAddress",
+                        "businessPhone",
+                        "businessWebsite",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "description": "User entity"
+                    }
+                  },
+                  "required": [
+                    "user"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "description": "Error response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/stripe/onboard": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Start Stripe onboarding process",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Onboarding URL generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "format": "uri"
+                    }
+                  },
+                  "required": [
+                    "url"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "User already onboarded or invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "description": "Error response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/services": {
+      "get": {
+        "tags": [
+          "Services"
+        ],
+        "summary": "Get all services for authenticated user",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Services retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "services": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "duration": {
+                            "type": "number"
+                          },
+                          "depositAmount": {
+                            "type": "number"
+                          },
+                          "depositType": {
+                            "type": "string",
+                            "enum": [
+                              "percentage",
+                              "fixed"
+                            ]
+                          },
+                          "depositPercentage": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "fullPrice": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "isActive": {
+                            "type": "boolean",
+                            "nullable": true
+                          },
+                          "requiresApproval": {
+                            "type": "boolean",
+                            "nullable": true
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "userId",
+                          "name",
+                          "description",
+                          "duration",
+                          "depositAmount",
+                          "depositType",
+                          "depositPercentage",
+                          "fullPrice",
+                          "isActive",
+                          "requiresApproval",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "description": "Service entity"
+                      }
+                    }
+                  },
+                  "required": [
+                    "services"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "description": "Error response"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Services"
+        ],
+        "summary": "Create a new service",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 200
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "duration": {
+                    "type": "number",
+                    "minimum": 15,
+                    "maximum": 480
+                  },
+                  "depositAmount": {
+                    "type": "number",
+                    "minimum": 100
+                  },
+                  "depositType": {
+                    "type": "string",
+                    "enum": [
+                      "percentage",
+                      "fixed"
+                    ]
+                  },
+                  "depositPercentage": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "fullPrice": {
+                    "type": "number",
+                    "minimum": 100
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  },
+                  "requiresApproval": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "name",
+                  "duration",
+                  "depositAmount"
+                ],
+                "description": "Service creation payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Service created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "service": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "userId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "duration": {
+                          "type": "number"
+                        },
+                        "depositAmount": {
+                          "type": "number"
+                        },
+                        "depositType": {
+                          "type": "string",
+                          "enum": [
+                            "percentage",
+                            "fixed"
+                          ]
+                        },
+                        "depositPercentage": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "fullPrice": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "isActive": {
+                          "type": "boolean",
+                          "nullable": true
+                        },
+                        "requiresApproval": {
+                          "type": "boolean",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "userId",
+                        "name",
+                        "description",
+                        "duration",
+                        "depositAmount",
+                        "depositType",
+                        "depositPercentage",
+                        "fullPrice",
+                        "isActive",
+                        "requiresApproval",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "description": "Service entity"
+                    }
+                  },
+                  "required": [
+                    "service"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "description": "Error response"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "description": "Error response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/services/user/{slug}": {
+      "get": {
+        "tags": [
+          "Services"
+        ],
+        "summary": "Get active services by user slug (public)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "User slug or business name"
+            },
+            "required": true,
+            "description": "User slug or business name",
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Services retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "services": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "duration": {
+                            "type": "number"
+                          },
+                          "depositAmount": {
+                            "type": "number"
+                          },
+                          "depositType": {
+                            "type": "string",
+                            "enum": [
+                              "percentage",
+                              "fixed"
+                            ]
+                          },
+                          "depositPercentage": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "fullPrice": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "isActive": {
+                            "type": "boolean",
+                            "nullable": true
+                          },
+                          "requiresApproval": {
+                            "type": "boolean",
+                            "nullable": true
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "userId",
+                          "name",
+                          "description",
+                          "duration",
+                          "depositAmount",
+                          "depositType",
+                          "depositPercentage",
+                          "fullPrice",
+                          "isActive",
+                          "requiresApproval",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "description": "Service entity"
+                      }
+                    }
+                  },
+                  "required": [
+                    "services"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/services/{id}": {
+      "get": {
+        "tags": [
+          "Services"
+        ],
+        "summary": "Get single service by ID",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Service retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "service": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "userId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "duration": {
+                          "type": "number"
+                        },
+                        "depositAmount": {
+                          "type": "number"
+                        },
+                        "depositType": {
+                          "type": "string",
+                          "enum": [
+                            "percentage",
+                            "fixed"
+                          ]
+                        },
+                        "depositPercentage": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "fullPrice": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "isActive": {
+                          "type": "boolean",
+                          "nullable": true
+                        },
+                        "requiresApproval": {
+                          "type": "boolean",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "userId",
+                        "name",
+                        "description",
+                        "duration",
+                        "depositAmount",
+                        "depositType",
+                        "depositPercentage",
+                        "fullPrice",
+                        "isActive",
+                        "requiresApproval",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "description": "Service entity"
+                    }
+                  },
+                  "required": [
+                    "service"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Service not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "description": "Error response"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Services"
+        ],
+        "summary": "Update a service",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 200
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "duration": {
+                    "type": "number",
+                    "minimum": 15,
+                    "maximum": 480
+                  },
+                  "depositAmount": {
+                    "type": "number",
+                    "minimum": 100
+                  },
+                  "depositType": {
+                    "type": "string",
+                    "enum": [
+                      "percentage",
+                      "fixed"
+                    ]
+                  },
+                  "depositPercentage": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "fullPrice": {
+                    "type": "number",
+                    "minimum": 100
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  },
+                  "requiresApproval": {
+                    "type": "boolean"
+                  }
+                },
+                "description": "Service creation payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Service updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "service": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "userId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "duration": {
+                          "type": "number"
+                        },
+                        "depositAmount": {
+                          "type": "number"
+                        },
+                        "depositType": {
+                          "type": "string",
+                          "enum": [
+                            "percentage",
+                            "fixed"
+                          ]
+                        },
+                        "depositPercentage": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "fullPrice": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "isActive": {
+                          "type": "boolean",
+                          "nullable": true
+                        },
+                        "requiresApproval": {
+                          "type": "boolean",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "userId",
+                        "name",
+                        "description",
+                        "duration",
+                        "depositAmount",
+                        "depositType",
+                        "depositPercentage",
+                        "fullPrice",
+                        "isActive",
+                        "requiresApproval",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "description": "Service entity"
+                    }
+                  },
+                  "required": [
+                    "service"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Service not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "description": "Error response"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Services"
+        ],
+        "summary": "Delete a service",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Service deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Service not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "description": "Error response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookings": {
+      "get": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Get all bookings for authenticated user",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bookings retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "bookings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "serviceId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "customerName": {
+                            "type": "string"
+                          },
+                          "customerEmail": {
+                            "type": "string",
+                            "format": "email"
+                          },
+                          "customerPhone": {
+                            "type": "string"
+                          },
+                          "customerAddress": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "bookingDate": {
+                            "type": "string"
+                          },
+                          "duration": {
+                            "type": "number"
+                          },
+                          "notes": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "depositAmount": {
+                            "type": "number"
+                          },
+                          "depositStatus": {
+                            "type": "string",
+                            "enum": [
+                              "pending",
+                              "paid",
+                              "failed",
+                              "refunded"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "pending",
+                              "confirmed",
+                              "cancelled",
+                              "completed",
+                              "refunded"
+                            ]
+                          },
+                          "stripePaymentIntentId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "stripeClientSecret": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "userId",
+                          "serviceId",
+                          "customerName",
+                          "customerEmail",
+                          "customerPhone",
+                          "customerAddress",
+                          "bookingDate",
+                          "duration",
+                          "notes",
+                          "depositAmount",
+                          "depositStatus",
+                          "status",
+                          "stripePaymentIntentId",
+                          "stripeClientSecret",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "description": "Booking entity"
+                      }
+                    }
+                  },
+                  "required": [
+                    "bookings"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Create a booking (public endpoint for widget)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "serviceId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "customerName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 100
+                  },
+                  "customerEmail": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "customerPhone": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 20
+                  },
+                  "customerAddress": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "bookingDate": {
+                    "type": "string"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                },
+                "required": [
+                  "serviceId",
+                  "customerName",
+                  "customerEmail",
+                  "customerPhone",
+                  "bookingDate"
+                ],
+                "description": "Booking creation payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Booking created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "booking": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "userId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "serviceId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "customerName": {
+                          "type": "string"
+                        },
+                        "customerEmail": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "customerPhone": {
+                          "type": "string"
+                        },
+                        "customerAddress": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "bookingDate": {
+                          "type": "string"
+                        },
+                        "duration": {
+                          "type": "number"
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "depositAmount": {
+                          "type": "number"
+                        },
+                        "depositStatus": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "paid",
+                            "failed",
+                            "refunded"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "confirmed",
+                            "cancelled",
+                            "completed",
+                            "refunded"
+                          ]
+                        },
+                        "stripePaymentIntentId": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "stripeClientSecret": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "userId",
+                        "serviceId",
+                        "customerName",
+                        "customerEmail",
+                        "customerPhone",
+                        "customerAddress",
+                        "bookingDate",
+                        "duration",
+                        "notes",
+                        "depositAmount",
+                        "depositStatus",
+                        "status",
+                        "stripePaymentIntentId",
+                        "stripeClientSecret",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "description": "Booking entity"
+                    },
+                    "clientSecret": {
+                      "type": "string",
+                      "description": "Stripe payment intent client secret"
+                    }
+                  },
+                  "required": [
+                    "booking",
+                    "clientSecret"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "description": "Error response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookings/{id}": {
+      "get": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Get single booking by ID",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Booking retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "booking": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "userId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "serviceId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "customerName": {
+                          "type": "string"
+                        },
+                        "customerEmail": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "customerPhone": {
+                          "type": "string"
+                        },
+                        "customerAddress": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "bookingDate": {
+                          "type": "string"
+                        },
+                        "duration": {
+                          "type": "number"
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "depositAmount": {
+                          "type": "number"
+                        },
+                        "depositStatus": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "paid",
+                            "failed",
+                            "refunded"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "confirmed",
+                            "cancelled",
+                            "completed",
+                            "refunded"
+                          ]
+                        },
+                        "stripePaymentIntentId": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "stripeClientSecret": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "userId",
+                        "serviceId",
+                        "customerName",
+                        "customerEmail",
+                        "customerPhone",
+                        "customerAddress",
+                        "bookingDate",
+                        "duration",
+                        "notes",
+                        "depositAmount",
+                        "depositStatus",
+                        "status",
+                        "stripePaymentIntentId",
+                        "stripeClientSecret",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "description": "Booking entity"
+                    }
+                  },
+                  "required": [
+                    "booking"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "description": "Error response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookings/{id}/status": {
+      "patch": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Update booking status",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "pending",
+                      "confirmed",
+                      "cancelled",
+                      "completed",
+                      "refunded"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Booking status updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "booking": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "userId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "serviceId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "customerName": {
+                          "type": "string"
+                        },
+                        "customerEmail": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "customerPhone": {
+                          "type": "string"
+                        },
+                        "customerAddress": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "bookingDate": {
+                          "type": "string"
+                        },
+                        "duration": {
+                          "type": "number"
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "depositAmount": {
+                          "type": "number"
+                        },
+                        "depositStatus": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "paid",
+                            "failed",
+                            "refunded"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "confirmed",
+                            "cancelled",
+                            "completed",
+                            "refunded"
+                          ]
+                        },
+                        "stripePaymentIntentId": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "stripeClientSecret": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "userId",
+                        "serviceId",
+                        "customerName",
+                        "customerEmail",
+                        "customerPhone",
+                        "customerAddress",
+                        "bookingDate",
+                        "duration",
+                        "notes",
+                        "depositAmount",
+                        "depositStatus",
+                        "status",
+                        "stripePaymentIntentId",
+                        "stripeClientSecret",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "description": "Booking entity"
+                    }
+                  },
+                  "required": [
+                    "booking"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "description": "Error response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookings/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Cancel a booking",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Booking cancelled successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "booking": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "userId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "serviceId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "customerName": {
+                          "type": "string"
+                        },
+                        "customerEmail": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "customerPhone": {
+                          "type": "string"
+                        },
+                        "customerAddress": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "bookingDate": {
+                          "type": "string"
+                        },
+                        "duration": {
+                          "type": "number"
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "depositAmount": {
+                          "type": "number"
+                        },
+                        "depositStatus": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "paid",
+                            "failed",
+                            "refunded"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "confirmed",
+                            "cancelled",
+                            "completed",
+                            "refunded"
+                          ]
+                        },
+                        "stripePaymentIntentId": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "stripeClientSecret": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "userId",
+                        "serviceId",
+                        "customerName",
+                        "customerEmail",
+                        "customerPhone",
+                        "customerAddress",
+                        "bookingDate",
+                        "duration",
+                        "notes",
+                        "depositAmount",
+                        "depositStatus",
+                        "status",
+                        "stripePaymentIntentId",
+                        "stripeClientSecret",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "description": "Booking entity"
+                    }
+                  },
+                  "required": [
+                    "booking"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "description": "Error response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health check endpoint",
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "healthy"
+                      ]
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "services": {
+                      "type": "object",
+                      "properties": {
+                        "database": {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "up",
+                                "down"
+                              ]
+                            },
+                            "responseTime": {
+                              "type": "number"
+                            },
+                            "error": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "status"
+                          ]
+                        },
+                        "redis": {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "up",
+                                "down"
+                              ]
+                            },
+                            "responseTime": {
+                              "type": "number"
+                            },
+                            "error": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "status"
+                          ]
+                        },
+                        "rabbitmq": {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "up",
+                                "down"
+                              ]
+                            },
+                            "responseTime": {
+                              "type": "number"
+                            },
+                            "error": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "status"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "database",
+                        "redis",
+                        "rabbitmq"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "timestamp",
+                    "services"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service is unhealthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "unhealthy"
+                      ]
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "services": {
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "timestamp"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

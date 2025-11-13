@@ -32,13 +32,7 @@ export const users = pgTable('users', {
 });
 
 // Validation schemas
-export const insertUserSchema = createInsertSchema(users, {
-  email: z.string().email(),
-  name: z.string().min(2).max(100),
-  businessName: z.string().min(2).max(100).optional(),
-  slug: z.string().min(3).max(50).regex(/^[a-z0-9-]+$/),
-  phone: z.string().optional(),
-}).omit({
+export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -47,4 +41,4 @@ export const insertUserSchema = createInsertSchema(users, {
 export const selectUserSchema = createSelectSchema(users);
 
 export type User = typeof users.$inferSelect;
-export type NewUser = z.infer<typeof insertUserSchema>;
+export type NewUser = typeof users.$inferInsert;

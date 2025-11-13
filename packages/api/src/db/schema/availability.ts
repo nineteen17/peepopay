@@ -60,32 +60,21 @@ export const blockedSlotsRelations = relations(blockedSlots, ({ one }) => ({
 }));
 
 // Validation schemas
-export const insertAvailabilitySchema = createInsertSchema(availability, {
-  dayOfWeek: z.enum(dayOfWeekEnum),
-  startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
-  endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
-  breakStart: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).optional(),
-  breakEnd: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).optional(),
-  slotDuration: z.number().min(15).max(240).optional(),
-}).omit({
+export const insertAvailabilitySchema = createInsertSchema(availability).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
 
-export const insertBlockedSlotSchema = createInsertSchema(blockedSlots, {
-  startTime: z.date().or(z.string()),
-  endTime: z.date().or(z.string()),
-  reason: z.string().max(500).optional(),
-}).omit({
+export const insertBlockedSlotSchema = createInsertSchema(blockedSlots).omit({
   id: true,
   createdAt: true,
 });
 
 export type Availability = typeof availability.$inferSelect;
-export type NewAvailability = z.infer<typeof insertAvailabilitySchema>;
+export type NewAvailability = typeof availability.$inferInsert;
 export type BlockedSlot = typeof blockedSlots.$inferSelect;
-export type NewBlockedSlot = z.infer<typeof insertBlockedSlotSchema>;
+export type NewBlockedSlot = typeof blockedSlots.$inferInsert;
 export type DayOfWeek = typeof dayOfWeekEnum[number];
 
 /**

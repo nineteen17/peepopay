@@ -12,22 +12,24 @@ const availabilityService = new AvailabilityService();
 
 // Public endpoint - Get available slots for a service provider
 // GET /api/availability/:slug?date=YYYY-MM-DD&duration=60
-router.get('/:slug', async (req, res, next) => {
+router.get('/:slug', async (req, res, next): Promise<void> => {
   try {
     const { slug } = req.params;
     const { date, duration } = req.query;
 
     if (!date || !duration) {
-      return res.status(400).json({
+      res.status(400).json({
         error: 'Missing required query parameters: date and duration',
       });
+      return;
     }
 
     const serviceDuration = parseInt(duration as string, 10);
     if (isNaN(serviceDuration) || serviceDuration < 15 || serviceDuration > 480) {
-      return res.status(400).json({
+      res.status(400).json({
         error: 'Duration must be a number between 15 and 480 minutes',
       });
+      return;
     }
 
     const slots = await availabilityService.getAvailableSlots(
@@ -91,14 +93,15 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res, next) => {
 // Blocked slots management
 
 // Get blocked slots
-router.get('/blocked-slots', requireAuth, async (req: AuthRequest, res, next) => {
+router.get('/blocked-slots', requireAuth, async (req: AuthRequest, res, next): Promise<void> => {
   try {
     const { from, to } = req.query;
 
     if (!from || !to) {
-      return res.status(400).json({
+      res.status(400).json({
         error: 'Missing required query parameters: from and to (ISO date strings)',
       });
+      return;
     }
 
     const slots = await availabilityService.getBlockedSlots(

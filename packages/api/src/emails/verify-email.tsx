@@ -9,7 +9,6 @@ import {
   Text,
   Button,
   Hr,
-  Code,
 } from '@react-email/components';
 import * as React from 'react';
 
@@ -50,7 +49,7 @@ export const VerifyEmail = ({
           {verificationCode && (
             <Section style={codeSection}>
               <Text style={codeLabel}>Or enter this verification code:</Text>
-              <Code style={code}>{verificationCode}</Code>
+              <Text style={code}>{verificationCode}</Text>
             </Section>
           )}
 

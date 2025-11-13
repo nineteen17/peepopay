@@ -19,8 +19,11 @@ import { execSync } from 'child_process';
 import { copyFileSync, readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { createHash } from 'crypto';
+import { fileURLToPath } from 'url';
 
 // Paths relative to packages/api/scripts/
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const API_DIR = resolve(__dirname, '..');
 const ROOT_DIR = resolve(API_DIR, '../..');
 const DASHBOARD_DIR = resolve(ROOT_DIR, 'packages/dashboard');
@@ -102,6 +105,8 @@ export type ApiResponse<
   Method extends keyof paths[Path]
 > = paths[Path][Method] extends { responses: { 200: { content: { 'application/json': infer T } } } }
   ? T
+  : paths[Path][Method] extends { responses: { 201: { content: { 'application/json': infer U } } } }
+  ? U
   : never;
 
 /**
@@ -143,14 +148,17 @@ export type ApiQuery<
 export type Service = components['schemas']['Service'];
 export type NewService = components['schemas']['NewService'];
 export type ServiceList = ApiResponse<'/api/services/user/{slug}', 'get'>;
+export type ServiceListResponse = ServiceList;
 export type ServiceResponse = ApiResponse<'/api/services/{id}', 'get'>;
 
 // Bookings
 export type Booking = components['schemas']['Booking'];
 export type NewBooking = components['schemas']['NewBooking'];
 export type BookingList = ApiResponse<'/api/bookings', 'get'>;
+export type BookingListResponse = BookingList;
 export type BookingResponse = ApiResponse<'/api/bookings/{id}', 'get'>;
 export type CreateBookingResponse = ApiResponse<'/api/bookings', 'post'>;
+export type BookingStatus = Booking['status'];
 
 // Users
 export type User = components['schemas']['User'];

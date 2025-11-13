@@ -1,9 +1,9 @@
 import { db } from '../../db/index.js';
 import { bookings, services, insertBookingSchema, type NewBooking, type BookingStatus } from '../../db/schema/index.js';
-import { eq, and, gte, lte, lt, or } from 'drizzle-orm';
+import { eq, and, lt, or } from 'drizzle-orm';
 import { AppError } from '../../middleware/errorHandler.js';
 import { createPaymentIntent } from '../../lib/stripe.js';
-import { QueueService } from '../../lib/queue.js';
+import { createQueueService } from '../../lib/queue.js';
 
 export interface BookingFilters {
   status?: string;
@@ -130,7 +130,7 @@ export class BookingsService {
    * Create a new booking (public endpoint - from widget)
    */
   async createBooking(data: NewBooking) {
-    const validatedData = insertBookingSchema.parse(data);
+    const validatedData = insertBookingSchema.parse(data) as unknown as NewBooking;
 
     // Use transaction to ensure data consistency
     return await db.transaction(async (tx) => {
@@ -282,7 +282,7 @@ export class BookingsService {
 
     if (booking && booking.service) {
       // Publish booking confirmation email to queue
-      const queueService = new QueueService();
+      const queueService = createQueueService();
       await queueService.publishBookingConfirmation(
         booking.id,
         booking.customerEmail,

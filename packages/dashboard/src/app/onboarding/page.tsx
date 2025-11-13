@@ -3,27 +3,25 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { api } from '@/lib/api';
-import { useAuth } from '@/contexts/auth-context';
+import { useStartStripeOnboarding } from '@/hooks/queries';
 import { CreditCard, CheckCircle, ArrowRight } from 'lucide-react';
 
 export default function OnboardingPage() {
-  const { refreshUser } = useAuth();
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const stripeOnboardingMutation = useStartStripeOnboarding();
 
   const handleStartOnboarding = async () => {
-    setLoading(true);
     setError('');
 
-    try {
-      const response = await api.startStripeOnboarding();
-      // Redirect to Stripe onboarding
-      window.location.href = response.url;
-    } catch (err: any) {
-      setError(err.message || 'Failed to start onboarding. Please try again.');
-      setLoading(false);
-    }
+    stripeOnboardingMutation.mutate(undefined, {
+      onSuccess: (response) => {
+        // Redirect to Stripe onboarding
+        window.location.href = response.url;
+      },
+      onError: (err: any) => {
+        setError(err.message || 'Failed to start onboarding. Please try again.');
+      },
+    });
   };
 
   return (
@@ -112,11 +110,11 @@ export default function OnboardingPage() {
 
           <Button
             onClick={handleStartOnboarding}
-            disabled={loading}
+            disabled={stripeOnboardingMutation.isPending}
             className="w-full"
             size="lg"
           >
-            {loading ? (
+            {stripeOnboardingMutation.isPending ? (
               'Redirecting to Stripe...'
             ) : (
               <>

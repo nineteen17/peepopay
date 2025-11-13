@@ -23,10 +23,13 @@ interface TimeSlot {
  * Handles availability rules, blocked slots, and available slot calculation
  */
 export class AvailabilityService {
-  private cacheService: CacheService;
+  private cacheService?: CacheService;
 
-  constructor() {
-    this.cacheService = createCacheService();
+  private getCacheService(): CacheService {
+    if (!this.cacheService) {
+      this.cacheService = createCacheService();
+    }
+    return this.cacheService;
   }
 
   /**
@@ -179,7 +182,7 @@ export class AvailabilityService {
   async getAvailableSlots(slug: string, date: string, serviceDuration: number): Promise<TimeSlot[]> {
     // Check cache first
     const cacheKey = `slots:${slug}:${date}:${serviceDuration}`;
-    const cached = await this.cacheService.get<TimeSlot[]>(cacheKey);
+    const cached = await this.getCacheService().get<TimeSlot[]>(cacheKey);
     if (cached) {
       return cached;
     }
@@ -252,7 +255,7 @@ export class AvailabilityService {
     allSlots.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
     // 8. Cache for 5 minutes
-    await this.cacheService.set(cacheKey, allSlots, 300);
+    await this.getCacheService().set(cacheKey, allSlots, 300);
 
     return allSlots;
   }
@@ -406,7 +409,7 @@ export class AvailabilityService {
 
     if (user?.slug) {
       // Delete all cached slots for this user
-      await this.cacheService.deletePattern(`slots:${user.slug}:*`);
+      await this.getCacheService().deletePattern(`slots:${user.slug}:*`);
     }
   }
 }

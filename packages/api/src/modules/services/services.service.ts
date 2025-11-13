@@ -9,10 +9,13 @@ import { createCacheService, type CacheService } from '../../lib/redis.js';
  * Handles service-related business logic and database operations
  */
 export class ServicesService {
-  private cacheService: CacheService;
+  private cacheService?: CacheService;
 
-  constructor() {
-    this.cacheService = createCacheService();
+  private getCacheService(): CacheService {
+    if (!this.cacheService) {
+      this.cacheService = createCacheService();
+    }
+    return this.cacheService;
   }
 
   /**
@@ -33,7 +36,7 @@ export class ServicesService {
     const cacheKey = `services:user:${slug}`;
 
     // Try to get from cache
-    const cached = await this.cacheService.get<any[]>(cacheKey);
+    const cached = await this.getCacheService().get<any[]>(cacheKey);
     if (cached) {
       return cached;
     }
@@ -44,7 +47,7 @@ export class ServicesService {
       with: {
         services: {
           where: eq(services.isActive, true),
-          orderBy: (services, { asc }) => [asc(services.name)],
+          orderBy: (serviceTable: typeof services, { asc }: any) => [asc(serviceTable.name)],
         },
       },
     });
@@ -52,7 +55,7 @@ export class ServicesService {
     const userServices = user?.services || [];
 
     // Cache for 10 minutes
-    await this.cacheService.set(cacheKey, userServices, 600);
+    await this.getCacheService().set(cacheKey, userServices, 600);
 
     return userServices;
   }
@@ -82,7 +85,7 @@ export class ServicesService {
     const validatedData = insertServiceSchema.parse({
       ...data,
       userId,
-    });
+    }) as unknown as NewService;
 
     const [newService] = await db.insert(services).values(validatedData).returning();
 
@@ -92,7 +95,7 @@ export class ServicesService {
     });
 
     if (user?.slug) {
-      await this.cacheService.del(`services:user:${user.slug}`);
+      await this.getCacheService().del(`services:user:${user.slug}`);
     }
 
     return newService;
@@ -125,7 +128,7 @@ export class ServicesService {
     });
 
     if (user?.slug) {
-      await this.cacheService.del(`services:user:${user.slug}`);
+      await this.getCacheService().del(`services:user:${user.slug}`);
     }
 
     return updated;
@@ -152,7 +155,7 @@ export class ServicesService {
     });
 
     if (user?.slug) {
-      await this.cacheService.del(`services:user:${user.slug}`);
+      await this.getCacheService().del(`services:user:${user.slug}`);
     }
 
     return { success: true, message: 'Service deleted successfully' };

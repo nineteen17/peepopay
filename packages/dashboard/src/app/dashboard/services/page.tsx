@@ -16,18 +16,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/lib/api';
+import { useAuth } from '@/contexts/auth-context';
 import { Package, Plus, Pencil, Trash2, DollarSign, Clock } from 'lucide-react';
-
-interface Service {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  duration: number;
-  active: boolean;
-}
+import type { Service } from '@/types/api';
 
 export default function ServicesPage() {
+  const { user } = useAuth();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -61,8 +55,8 @@ export default function ServicesPage() {
       setEditingService(service);
       setFormData({
         name: service.name,
-        description: service.description,
-        price: (service.price / 100).toString(),
+        description: service.description || '',
+        price: (service.depositAmount / 100).toString(),
         duration: service.duration.toString(),
       });
     } else {
@@ -96,10 +90,15 @@ export default function ServicesPage() {
     setError('');
 
     try {
+      if (!user?.id) {
+        throw new Error('User ID required');
+      }
+
       const data = {
+        userId: user.id,
         name: formData.name,
         description: formData.description,
-        price: Math.round(parseFloat(formData.price) * 100),
+        depositAmount: Math.round(parseFloat(formData.price) * 100),
         duration: parseInt(formData.duration),
       };
 
@@ -179,7 +178,7 @@ export default function ServicesPage() {
                   <div className="flex-1">
                     <CardTitle className="flex items-center gap-2">
                       {service.name}
-                      {service.active && (
+                      {service.isActive && (
                         <Badge variant="success" className="text-xs">
                           Active
                         </Badge>
@@ -196,7 +195,7 @@ export default function ServicesPage() {
                   <div className="flex items-center gap-2 text-sm">
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                     <span className="font-medium">
-                      ${(service.price / 100).toFixed(2)}
+                      ${(service.depositAmount / 100).toFixed(2)}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">

@@ -2,8 +2,6 @@
 # Usage: docker-compose up
 # Builds and runs all services with production configurations locally
 
-version: '3.8'
-
 services:
   # PostgreSQL Database
   postgres:

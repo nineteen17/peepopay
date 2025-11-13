@@ -2,7 +2,6 @@
 # Usage: docker-compose -f docker-compose.dev.yml up
 # Runs all services locally with hot-reload and volume mounts
 
-version: '3.8'
 
 services:
   # PostgreSQL Database

@@ -54,18 +54,7 @@ export const bookingsRelations = relations(bookings, ({ one }) => ({
 }));
 
 // Validation schemas
-export const insertBookingSchema = createInsertSchema(bookings, {
-  customerName: z.string().min(2).max(100),
-  customerEmail: z.string().email(),
-  customerPhone: z.string().min(10).max(20),
-  customerAddress: z.string().max(500).optional(),
-  bookingDate: z.date().or(z.string()),
-  duration: z.number().min(15).max(480),
-  notes: z.string().max(1000).optional(),
-  depositAmount: z.number().min(100),
-  depositStatus: z.enum(depositStatusEnum).optional(),
-  status: z.enum(bookingStatusEnum).optional(),
-}).omit({
+export const insertBookingSchema = createInsertSchema(bookings).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -74,6 +63,6 @@ export const insertBookingSchema = createInsertSchema(bookings, {
 export const selectBookingSchema = createSelectSchema(bookings);
 
 export type Booking = typeof bookings.$inferSelect;
-export type NewBooking = z.infer<typeof insertBookingSchema>;
+export type NewBooking = typeof bookings.$inferInsert;
 export type BookingStatus = typeof bookingStatusEnum[number];
 export type DepositStatus = typeof depositStatusEnum[number];

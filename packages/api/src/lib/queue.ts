@@ -15,19 +15,20 @@ export const QUEUES = {
 export async function initRabbitMQ(): Promise<void> {
   try {
     // Create connection
-    connection = await amqp.connect(config.rabbitmqUrl);
+    const conn = await amqp.connect(config.rabbitmqUrl);
+    connection = conn as unknown as Connection;
     console.log('✅ RabbitMQ connected');
 
-    connection.on('error', (err) => {
+    conn.on('error', (err: Error) => {
       console.error('RabbitMQ Connection Error:', err);
     });
 
-    connection.on('close', () => {
+    conn.on('close', () => {
       console.log('RabbitMQ connection closed');
     });
 
     // Create channel
-    channel = await connection.createChannel();
+    channel = await conn.createChannel();
     console.log('✅ RabbitMQ channel created');
 
     // Assert queues with dead letter exchange
@@ -81,7 +82,7 @@ export async function closeRabbitMQ(): Promise<void> {
       channel = null;
     }
     if (connection) {
-      await connection.close();
+      await (connection as any).close();
       connection = null;
     }
     console.log('RabbitMQ connection closed');

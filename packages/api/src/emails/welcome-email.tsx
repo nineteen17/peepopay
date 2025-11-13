@@ -131,7 +131,6 @@ const text = {
 };
 
 const benefitsSection = {
-  padding: '0 40px',
   margin: '24px 0',
   backgroundColor: '#f8fafc',
   borderRadius: '8px',

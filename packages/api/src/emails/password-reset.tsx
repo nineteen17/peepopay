@@ -9,7 +9,6 @@ import {
   Text,
   Button,
   Hr,
-  Code,
 } from '@react-email/components';
 import * as React from 'react';
 
@@ -50,7 +49,7 @@ export const PasswordResetEmail = ({
           {resetCode && (
             <Section style={codeSection}>
               <Text style={codeLabel}>Or enter this reset code:</Text>
-              <Code style={code}>{resetCode}</Code>
+              <Text style={code}>{resetCode}</Text>
             </Section>
           )}
 

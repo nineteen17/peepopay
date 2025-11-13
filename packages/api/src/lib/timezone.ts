@@ -14,13 +14,13 @@
  * @param timezone - IANA timezone string (e.g., 'Australia/Sydney')
  * @returns Date in UTC
  */
-export function convertToUTC(date: Date, timezone: string): Date {
+export function convertToUTC(date: Date, _timezone: string): Date {
   // Temporary implementation until date-fns-tz is installed
   // This assumes the date is already in UTC
   return date;
 
   // Proper implementation when date-fns-tz is available:
-  // return zonedTimeToUtc(date, timezone);
+  // return zonedTimeToUtc(date, _timezone);
 }
 
 /**
@@ -29,12 +29,12 @@ export function convertToUTC(date: Date, timezone: string): Date {
  * @param timezone - IANA timezone string (e.g., 'Australia/Sydney')
  * @returns Date in user's timezone
  */
-export function convertToUserTimezone(date: Date, timezone: string): Date {
+export function convertToUserTimezone(date: Date, _timezone: string): Date {
   // Temporary implementation until date-fns-tz is installed
   return date;
 
   // Proper implementation when date-fns-tz is available:
-  // return utcToZonedTime(date, timezone);
+  // return utcToZonedTime(date, _timezone);
 }
 
 /**
@@ -46,14 +46,14 @@ export function convertToUserTimezone(date: Date, timezone: string): Date {
  */
 export function formatInTimezone(
   date: Date,
-  timezone: string,
-  formatStr: string
+  _timezone: string,
+  _formatStr: string
 ): string {
   // Temporary implementation until date-fns-tz is installed
   return date.toISOString();
 
   // Proper implementation when date-fns-tz is available:
-  // return format(utcToZonedTime(date, timezone), formatStr, { timeZone: timezone });
+  // return format(utcToZonedTime(date, _timezone), _formatStr, { timeZone: _timezone });
 }
 
 /**
@@ -82,7 +82,7 @@ export function isValidTimezone(timezone: string): boolean {
  * @param timezone - IANA timezone string
  * @returns Date object
  */
-export function parseDateInTimezone(dateString: string, timezone: string): Date {
+export function parseDateInTimezone(dateString: string, _timezone: string): Date {
   // Temporary implementation
   return new Date(dateString);
 

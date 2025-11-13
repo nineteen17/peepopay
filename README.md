@@ -384,11 +384,10 @@ STRIPE_CLIENT_ID=ca_...
 BETTER_AUTH_SECRET=your-secret-key
 JWT_SECRET=your-jwt-secret
 
-# Email (SMTP)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASSWORD=your-app-password
+# Email (Resend)
+RESEND_API_KEY=re_your_resend_api_key
+FROM_EMAIL=noreply@peepopay.com
+FROM_NAME=PeepoPay
 
 # Google OAuth (optional)
 GOOGLE_CLIENT_ID=...

@@ -47,14 +47,14 @@ import { Request, Response, NextFunction } from 'express';
 // });
 
 // Temporary pass-through middleware until express-rate-limit is installed
-export const publicBookingLimiter = (req: Request, res: Response, next: NextFunction) => {
+export const publicBookingLimiter = (_req: Request, _res: Response, next: NextFunction) => {
   next();
 };
 
-export const availabilityLimiter = (req: Request, res: Response, next: NextFunction) => {
+export const availabilityLimiter = (_req: Request, _res: Response, next: NextFunction) => {
   next();
 };
 
-export const authLimiter = (req: Request, res: Response, next: NextFunction) => {
+export const authLimiter = (_req: Request, _res: Response, next: NextFunction) => {
   next();
 };

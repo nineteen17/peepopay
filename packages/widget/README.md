@@ -11,6 +11,8 @@ React 19 + Vite static widget for seamless customer bookings with Stripe payment
 - 📅 **Date/Time Picker** - Weekly calendar with time slot selection
 - 📱 **Responsive Design** - Mobile-first with Tailwind CSS
 - 🔒 **Type Safety** - Auto-generated TypeScript types from API schemas
+- ✅ **Zod Validation** - Real-time form validation with Zod schemas matching API requirements
+- 🛡️ **Error Boundaries** - Graceful error handling with React Error Boundaries
 - ⚡ **Vite Build** - Lightning-fast development and optimized production builds
 - 🐳 **Docker Ready** - Nginx-based production deployment
 - 🎨 **Customizable** - Tailwind CSS with custom color schemes
@@ -20,12 +22,14 @@ React 19 + Vite static widget for seamless customer bookings with Stripe payment
 | Component | Technology |
 |-----------|-----------|
 | **Framework** | React 19 |
-| **Build Tool** | Vite 5 |
+| **Build Tool** | Vite 6 |
 | **Styling** | Tailwind CSS 3 |
-| **Payments** | Stripe Elements |
+| **Payments** | Stripe Elements 5 |
 | **Icons** | Lucide React |
 | **Language** | TypeScript 5 |
+| **Type Safety** | Auto-generated API types |
 | **Server** | Nginx (production) |
+| **Validation** | Zod - Real-time form validation |
 
 ## 🎨 Widget Flow
 
@@ -125,34 +129,55 @@ VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
 
 **Important:** All environment variables must be prefixed with `VITE_` to be accessible in the browser.
 
-## 🔒 Type Safety
+## 🔒 Type Safety & Automated Sync
 
-The widget uses **auto-generated TypeScript types** from the API's Zod schemas:
+The widget uses **auto-generated TypeScript types** from the API's Zod schemas with **automated synchronization**:
 
 ```typescript
-// Import auto-generated types
-import type { Service, NewBooking } from '../types/api';
+// Import auto-generated types from API
+import type { Service, NewBooking, CreateBookingResponse } from '../types/api';
 
 // ✅ Compile-time type safety
 const [services, setServices] = useState<Service[]>([]);
 
-// ✅ TypeScript enforces correct fields
+// ✅ TypeScript enforces correct NewBooking payload
 const booking: NewBooking = {
   serviceId: selectedService.id,
-  bookingDate: selectedDateTime.toISOString(),
   customerName: formData.customerName,
   customerEmail: formData.customerEmail,
-  // TypeScript error if fields are wrong!
+  customerPhone: formData.customerPhone, // Required field
+  customerAddress: formData.customerAddress, // Optional
+  bookingDate: selectedDateTime.toISOString(),
+  notes: formData.notes, // Optional
+  // TypeScript error if fields are wrong or missing!
 };
+
+// ✅ Fully typed API responses
+const response: CreateBookingResponse = await fetch('/api/bookings', {
+  method: 'POST',
+  body: JSON.stringify(booking)
+}).then(r => r.json());
+
+const { booking: createdBooking, clientSecret } = response;
 ```
 
-**Benefits:**
-- Catch API mismatches at compile-time
-- Auto-complete for API fields
-- Never ship broken integrations
-- Types stay in sync automatically
+### Automated Workflow
 
-See [TYPE_SAFETY_SETUP.md](../../TYPE_SAFETY_SETUP.md) for more details.
+Types are **automatically synced** from the API to widget:
+
+1. ✅ **API generates OpenAPI spec** from Zod schemas (`npm run generate:openapi`)
+2. ✅ **TypeScript types generated** from OpenAPI using `openapi-typescript`
+3. ✅ **Types copied to widget** (`packages/widget/src/types/api.ts`)
+4. ✅ **100% API contract adherence** with compile-time validation
+
+**Benefits:**
+- Zero manual type maintenance
+- Catch API breaking changes at compile-time
+- Auto-complete for all API fields and responses
+- Never ship broken integrations
+- Types stay in sync automatically on every API build
+
+See [TYPE_SAFETY_SETUP.md](../../TYPE_SAFETY_SETUP.md) for technical details.
 
 ## 📱 Component Breakdown
 
@@ -401,41 +426,56 @@ docker-compose -f ../../docker-compose.yml up widget
 ### Endpoints Used
 
 ```typescript
-// Get services for a tradie
+// Get services for a tradie (Public endpoint)
 GET /api/services/user/:slug
 Response: {
   services: Service[]  // Only active services (isActive: true)
 }
 
-// Create booking
+// Create booking (Public endpoint from widget)
 POST /api/bookings
+Request Body (NewBooking):
 {
-  userId: string;            // Tradie's user ID (from service.userId)
-  serviceId: string;
-  bookingDate: string;       // ISO 8601
-  duration: number;          // Duration in minutes (from service)
+  serviceId: string;         // Service ID (required)
   customerName: string;      // 2-100 characters (required)
   customerEmail: string;     // Valid email (required)
   customerPhone: string;     // 10-20 characters (required)
   customerAddress?: string;  // Max 500 characters (optional)
+  bookingDate: string;       // ISO 8601 (required)
   notes?: string;           // Max 1000 characters (optional)
-  depositAmount: number;     // Amount in cents (from service)
-  depositStatus?: 'pending' | 'paid' | 'failed' | 'refunded';
-  status?: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'refunded';
 }
 
-// Response includes clientSecret for Stripe
-Response: {
-  booking: Booking,          // Full booking object
+Response (CreateBookingResponse):
+{
+  booking: Booking,          // Full booking object with calculated fields
   clientSecret: string       // Stripe Payment Intent client secret
 }
 ```
 
-**Important Changes:**
-- `userId` field is now **required** in booking creation
-- `customerPhone` is now **required** (was optional before)
-- `duration` field is now **required** in booking payload
-- Response type changed from object to typed interface
+### Key API Contract Details
+
+**Auto-Calculated by API:**
+- `userId` - Derived from the selected service
+- `duration` - Copied from service definition
+- `depositAmount` - Copied from service definition  
+- `status` - Set to 'pending' initially
+- `depositStatus` - Set to 'pending' initially
+
+**Required Widget Fields:**
+- ✅ `serviceId` - Must exist and be active
+- ✅ `customerName` - 2-100 characters 
+- ✅ `customerEmail` - Valid email format
+- ✅ `customerPhone` - 10-20 characters (now required)
+- ✅ `bookingDate` - Valid ISO 8601 datetime
+
+**Optional Widget Fields:**
+- `customerAddress` - Max 500 characters
+- `notes` - Max 1000 characters
+
+**Response guarantees:**
+- `booking` object with all calculated fields populated
+- `clientSecret` for Stripe payment processing
+- Automatic Stripe Connect routing to tradie's account
 
 ## 🧪 Testing
 

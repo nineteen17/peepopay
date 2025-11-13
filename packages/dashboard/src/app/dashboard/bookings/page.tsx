@@ -15,22 +15,7 @@ import {
 import { api } from '@/lib/api';
 import { Calendar, Clock, DollarSign, Mail, User, Phone, MapPin, CheckCircle, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
-
-interface Booking {
-  id: string;
-  serviceName: string;
-  servicePrice: number;
-  serviceDuration: number;
-  customerName: string;
-  customerEmail: string;
-  customerPhone?: string;
-  scheduledFor: string;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
-  totalAmount: number;
-  platformFee: number;
-  paymentStatus: string;
-  createdAt: string;
-}
+import type { Booking, BookingStatus } from '@/types/api';
 
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -54,7 +39,7 @@ export default function BookingsPage() {
     }
   };
 
-  const handleStatusUpdate = async (bookingId: string, status: string) => {
+  const handleStatusUpdate = async (bookingId: string, status: BookingStatus) => {
     try {
       await api.updateBookingStatus(bookingId, status);
       await fetchBookings();
@@ -109,7 +94,7 @@ export default function BookingsPage() {
               {getStatusBadge(booking.status)}
             </CardTitle>
             <CardDescription className="mt-2">
-              {booking.serviceName}
+              Service ID: {booking.serviceId}
             </CardDescription>
           </div>
         </div>
@@ -118,16 +103,16 @@ export default function BookingsPage() {
         <div className="space-y-2 text-sm">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Calendar className="h-4 w-4" />
-            <span>{format(new Date(booking.scheduledFor), 'EEEE, MMMM dd, yyyy')}</span>
+            <span>{format(new Date(booking.bookingDate), 'EEEE, MMMM dd, yyyy')}</span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <Clock className="h-4 w-4" />
-            <span>{format(new Date(booking.scheduledFor), 'h:mm a')} ({booking.serviceDuration} min)</span>
+            <span>{format(new Date(booking.bookingDate), 'h:mm a')} ({booking.duration} min)</span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <DollarSign className="h-4 w-4" />
             <span className="font-medium text-foreground">
-              ${(booking.totalAmount / 100).toFixed(2)}
+              ${(booking.depositAmount / 100).toFixed(2)}
             </span>
           </div>
         </div>
@@ -238,15 +223,15 @@ export default function BookingsPage() {
               <div className="space-y-3">
                 <h3 className="font-semibold">Service Details</h3>
                 <div className="p-4 border rounded-lg space-y-2">
-                  <div className="font-medium">{selectedBooking.serviceName}</div>
+                  <div className="font-medium">Service ID: {selectedBooking.serviceId}</div>
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4" />
-                      {selectedBooking.serviceDuration} minutes
+                      {selectedBooking.duration} minutes
                     </div>
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-4 w-4" />
-                      ${(selectedBooking.servicePrice / 100).toFixed(2)}
+                      ${(selectedBooking.depositAmount / 100).toFixed(2)}
                     </div>
                   </div>
                 </div>
@@ -257,10 +242,10 @@ export default function BookingsPage() {
                 <h3 className="font-semibold">Schedule</h3>
                 <div className="p-4 border rounded-lg">
                   <div className="text-lg font-medium">
-                    {format(new Date(selectedBooking.scheduledFor), 'EEEE, MMMM dd, yyyy')}
+                    {format(new Date(selectedBooking.bookingDate), 'EEEE, MMMM dd, yyyy')}
                   </div>
                   <div className="text-sm text-muted-foreground mt-1">
-                    {format(new Date(selectedBooking.scheduledFor), 'h:mm a')}
+                    {format(new Date(selectedBooking.bookingDate), 'h:mm a')}
                   </div>
                 </div>
               </div>
@@ -270,27 +255,21 @@ export default function BookingsPage() {
                 <h3 className="font-semibold">Payment</h3>
                 <div className="p-4 border rounded-lg space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Service Price</span>
+                    <span className="text-sm text-muted-foreground">Deposit Amount</span>
                     <span className="text-sm font-medium">
-                      ${(selectedBooking.servicePrice / 100).toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Platform Fee (2.5%)</span>
-                    <span className="text-sm font-medium">
-                      ${(selectedBooking.platformFee / 100).toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between pt-2 border-t">
-                    <span className="font-medium">Total</span>
-                    <span className="font-bold">
-                      ${(selectedBooking.totalAmount / 100).toFixed(2)}
+                      ${(selectedBooking.depositAmount / 100).toFixed(2)}
                     </span>
                   </div>
                   <div className="flex justify-between pt-2">
-                    <span className="text-sm text-muted-foreground">Payment Status</span>
-                    <Badge variant={selectedBooking.paymentStatus === 'succeeded' ? 'success' : 'warning'}>
-                      {selectedBooking.paymentStatus}
+                    <span className="text-sm text-muted-foreground">Deposit Status</span>
+                    <Badge variant={selectedBooking.depositStatus === 'paid' ? 'success' : 'warning'}>
+                      {selectedBooking.depositStatus}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between pt-2">
+                    <span className="text-sm text-muted-foreground">Booking Status</span>
+                    <Badge variant={selectedBooking.status === 'confirmed' ? 'success' : 'warning'}>
+                      {selectedBooking.status}
                     </Badge>
                   </div>
                 </div>

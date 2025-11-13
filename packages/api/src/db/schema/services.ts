@@ -41,15 +41,7 @@ export const servicesRelations = relations(services, ({ one, many }) => ({
 }));
 
 // Validation schemas
-export const insertServiceSchema = createInsertSchema(services, {
-  name: z.string().min(3).max(200),
-  description: z.string().max(1000).optional(),
-  duration: z.number().min(15).max(480), // 15 minutes to 8 hours
-  depositAmount: z.number().min(100), // Minimum $1.00 or 1% depending on depositType
-  depositType: z.enum(depositTypeEnum).optional(),
-  depositPercentage: z.number().min(1).max(100).optional(),
-  fullPrice: z.number().min(100).optional(),
-}).omit({
+export const insertServiceSchema = createInsertSchema(services).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -58,5 +50,5 @@ export const insertServiceSchema = createInsertSchema(services, {
 export const selectServiceSchema = createSelectSchema(services);
 
 export type Service = typeof services.$inferSelect;
-export type NewService = z.infer<typeof insertServiceSchema>;
+export type NewService = typeof services.$inferInsert;
 export type DepositType = typeof depositTypeEnum[number];

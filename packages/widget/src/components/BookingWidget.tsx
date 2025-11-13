@@ -77,17 +77,14 @@ export default function BookingWidget({ userSlug }: BookingWidgetProps) {
     setError('');
 
     try {
-      // Create booking with updated API requirements
+      // Create booking with correct API payload
       const bookingPayload: NewBooking = {
-        userId: selectedService.userId,
         serviceId: selectedService.id,
-        bookingDate: selectedDateTime.toISOString(),
-        duration: selectedService.duration,
-        depositAmount: selectedService.depositAmount,
         customerName: formData.customerName,
         customerEmail: formData.customerEmail,
         customerPhone: formData.customerPhone,
         customerAddress: formData.customerAddress || undefined,
+        bookingDate: selectedDateTime.toISOString(),
         notes: formData.notes || undefined,
       };
 

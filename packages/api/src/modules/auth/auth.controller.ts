@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
 import { auth } from '../../lib/auth.js';
 
 const router = Router();
@@ -9,8 +9,8 @@ const router = Router();
  */
 
 // Better Auth handles all /api/auth/* routes
-router.all('/*', (req: Request, res: Response, next: NextFunction) => {
-  return auth.handler(req, res);
+router.all('/*', (req, res) => {
+  return auth.handler(req);
 });
 
 export default router;

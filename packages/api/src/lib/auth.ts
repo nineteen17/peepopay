@@ -8,7 +8,7 @@ import {
   sendPasswordResetEmail,
 } from './email.js';
 
-export const auth = betterAuth({
+export const auth: any = betterAuth({
   database: drizzleAdapter(db, {
     provider: 'pg',
   }),

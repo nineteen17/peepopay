@@ -1,0 +1,478 @@
+> alright we shouyld now ensure that the widget is up to date woth the api, so lets first see if the widget  code matches the api code whioch is the source of truth and also update the w3idget readme etc to 
+  ensure it its all porperly confugred
+
+
+⏺ I'll analyze the widget code to ensure it matches the API (our source of truth) and update the widget documentation accordingly.
+
+
+⏺ Update Todos
+
+  ⎿  ☐ Analyze widget API integration for alignment with API source of truth
+     ☐ Check widget type usage and sync status
+     ☐ Update widget README and documentation
+     ☐ Fix any widget API mismatches found
+
+
+⏺ Update Todos
+
+  ⎿  ☐ Analyze widget API integration for alignment with API source of truth
+     ☐ Check widget type usage and sync status
+     ☐ Update widget README and documentation
+     ☐ Fix any widget API mismatches found
+
+
+⏺ Let me start by examining the widget's structure and API integration:
+
+
+⏺ List(..)
+
+  ⎿  Listed 159 paths (ctrl+r to expand)
+
+
+⏺ Now let me examine the widget's structure and API integration:
+
+
+⏺ Read(package.json)
+
+  ⎿  Read 37 lines (ctrl+r to expand)
+
+
+⏺ Read(src/components/BookingWidget.tsx)
+
+  ⎿  Read 348 lines (ctrl+r to expand)
+
+
+⏺ I can see several issues with the widget's booking payload. Let me check the widget's type definitions:
+
+
+⏺ Read(src/types/api.ts)
+
+  ⎿  Read 50 lines (ctrl+r to expand)
+
+
+⏺ Good, the widget has the same auto-generated API types. Let me check the NewBooking type specifically:
+
+
+⏺ Search(pattern: "NewBooking", path: "src/types/api.ts", output_mode: "content")
+
+  ⎿  Found 14 lines (ctrl+r to expand)
+
+
+⏺ Search(pattern: "NewBooking.*serviceId.*customerName.*customerEmail.*customerPhone", path: "src/types/api.ts", output_mode: "content")
+
+  ⎿  Found 17 lines (ctrl+r to expand)
+
+
+⏺ Perfect! Now I can see the issue. The widget is sending extra fields (userId, duration, depositAmount) in the booking payload that are not part of the NewBooking schema. Let me fix this:
+
+
+⏺ Update Todos
+
+  ⎿  ☒ Analyze widget API integration for alignment with API source of truth
+     ☐ Check widget type usage and sync status
+     ☐ Update widget README and documentation
+     ☐ Fix any widget API mismatches found
+
+
+⏺ Update(src/components/BookingWidget.tsx)
+
+  ⎿  Updated src/components/BookingWidget.tsx with 2 additions and 5 removals
+       77        setError('');
+       78    
+       79        try {
+       80 -        // Create booking with updated API requirements
+       80 +        // Create booking with correct API payload
+       81          const bookingPayload: NewBooking = {
+       82 -          userId: selectedService.userId,
+       82            serviceId: selectedService.id,
+       83 -          bookingDate: selectedDateTime.toISOString(),
+       84 -          duration: selectedService.duration,
+       85 -          depositAmount: selectedService.depositAmount,
+       83            customerName: formData.customerName,
+       84            customerEmail: formData.customerEmail,
+       85            customerPhone: formData.customerPhone,
+       86            customerAddress: formData.customerAddress || undefined,
+       87 +          bookingDate: selectedDateTime.toISOString(),
+       88            notes: formData.notes || undefined,
+       89          };
+       90    
+
+
+⏺ Now let me check if there are any other API integration files in the widget:
+
+
+⏺ Search(pattern: "**/*.{ts,tsx}", path: "src")
+
+  ⎿  Found 8 files (ctrl+r to expand)
+
+
+⏺ Let me check the ServiceSelection component to make sure it's using the correct API endpoint:
+
+
+⏺ Read(src/components/ServiceSelection.tsx)
+
+  ⎿  Read 66 lines (ctrl+r to expand)
+
+
+⏺ The ServiceSelection looks good. Now let me check the widget's README to update it:
+
+
+⏺ Update Todos
+
+  ⎿  ☒ Analyze widget API integration for alignment with API source of truth
+     ☒ Check widget type usage and sync status
+     ☒ Fix any widget API mismatches found
+     ☐ Update widget README and documentation
+
+
+⏺ Read(README.md)
+
+  ⎿  Read 534 lines (ctrl+r to expand)
+
+
+⏺ I can see the widget README has outdated API information. Let me update it to reflect the current API contract:
+
+
+⏺ Update(README.md)
+
+  ⎿  Updated README.md with 32 additions and 11 removals                                                                        
+       125    
+       126    **Important:** All environment variables must be prefixed with `VITE_` to be accessible in the browser.
+       127    
+       128 -  ## 🔒 Type Safety
+       128 +  ## 🔒 Type Safety & Automated Sync
+       129    
+       130 -  The widget uses **auto-generated TypeScript types** from the API's Zod schemas:
+       130 +  The widget uses **auto-generated TypeScript types** from the API's Zod schemas with **automated synchronization**:
+       131    
+       132    ```typescript
+       133 -  // Import auto-generated types
+       134 -  import type { Service, NewBooking } from '../types/api';
+       133 +  // Import auto-generated types from API
+       134 +  import type { Service, NewBooking, CreateBookingResponse } from '../types/api';
+       135    
+       136    // ✅ Compile-time type safety
+       137    const [services, setServices] = useState<Service[]>([]);
+       138    
+       139 -  // ✅ TypeScript enforces correct fields
+       139 +  // ✅ TypeScript enforces correct NewBooking payload
+       140    const booking: NewBooking = {
+       141      serviceId: selectedService.id,
+       142 -    bookingDate: selectedDateTime.toISOString(),
+       142      customerName: formData.customerName,
+       143      customerEmail: formData.customerEmail,
+       144 -    // TypeScript error if fields are wrong!
+       144 +    customerPhone: formData.customerPhone, // Required field
+       145 +    customerAddress: formData.customerAddress, // Optional
+       146 +    bookingDate: selectedDateTime.toISOString(),
+       147 +    notes: formData.notes, // Optional
+       148 +    // TypeScript error if fields are wrong or missing!
+       149    };
+       150 +  
+       151 +  // ✅ Fully typed API responses
+       152 +  const response: CreateBookingResponse = await fetch('/api/bookings', {
+       153 +    method: 'POST',
+       154 +    body: JSON.stringify(booking)
+       155 +  }).then(r => r.json());
+       156 +  
+       157 +  const { booking: createdBooking, clientSecret } = response;
+       158    ```
+       159    
+       160 +  ### Automated Workflow
+       161 +  
+       162 +  Types are **automatically synced** from the API to widget:
+       163 +  
+       164 +  1. ✅ **API generates OpenAPI spec** from Zod schemas (`npm run generate:openapi`)
+       165 +  2. ✅ **TypeScript types generated** from OpenAPI using `openapi-typescript`
+       166 +  3. ✅ **Types copied to widget** (`packages/widget/src/types/api.ts`)
+       167 +  4. ✅ **100% API contract adherence** with compile-time validation
+       168 +  
+       169    **Benefits:**
+       170 -  - Catch API mismatches at compile-time
+       171 -  - Auto-complete for API fields
+       170 +  - Zero manual type maintenance
+       171 +  - Catch API breaking changes at compile-time
+       172 +  - Auto-complete for all API fields and responses
+       173    - Never ship broken integrations
+       174 -  - Types stay in sync automatically
+       174 +  - Types stay in sync automatically on every API build
+       175    
+       176 -  See [TYPE_SAFETY_SETUP.md](../../TYPE_SAFETY_SETUP.md) for more details.
+       176 +  See [TYPE_SAFETY_SETUP.md](../../TYPE_SAFETY_SETUP.md) for technical details.
+       177    
+       178    ## 📱 Component Breakdown
+       179    
+
+
+⏺ Update(README.md)
+
+  ⎿  Updated README.md with 32 additions and 17 removals                                  
+       422    ### Endpoints Used
+       423    
+       424    ```typescript
+       425 -  // Get services for a tradie
+       425 +  // Get services for a tradie (Public endpoint)
+       426    GET /api/services/user/:slug
+       427    Response: {
+       428      services: Service[]  // Only active services (isActive: true)
+       429    }
+       430    
+       431 -  // Create booking
+       431 +  // Create booking (Public endpoint from widget)
+       432    POST /api/bookings
+       433 +  Request Body (NewBooking):
+       434    {
+       435 -    userId: string;            // Tradie's user ID (from service.userId)
+       436 -    serviceId: string;
+       437 -    bookingDate: string;       // ISO 8601
+       438 -    duration: number;          // Duration in minutes (from service)
+       435 +    serviceId: string;         // Service ID (required)
+       436      customerName: string;      // 2-100 characters (required)
+       437      customerEmail: string;     // Valid email (required)
+       438      customerPhone: string;     // 10-20 characters (required)
+       439      customerAddress?: string;  // Max 500 characters (optional)
+       440 +    bookingDate: string;       // ISO 8601 (required)
+       441      notes?: string;           // Max 1000 characters (optional)
+       442 -    depositAmount: number;     // Amount in cents (from service)
+       443 -    depositStatus?: 'pending' | 'paid' | 'failed' | 'refunded';
+       444 -    status?: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'refunded';
+       442    }
+       443    
+       444 -  // Response includes clientSecret for Stripe
+       445 -  Response: {
+       446 -    booking: Booking,          // Full booking object
+       444 +  Response (CreateBookingResponse):
+       445 +  {
+       446 +    booking: Booking,          // Full booking object with calculated fields
+       447      clientSecret: string       // Stripe Payment Intent client secret
+       448    }
+       449    ```
+       450    
+       451 -  **Important Changes:**
+       452 -  - `userId` field is now **required** in booking creation
+       453 -  - `customerPhone` is now **required** (was optional before)
+       454 -  - `duration` field is now **required** in booking payload
+       455 -  - Response type changed from object to typed interface
+       451 +  ### Key API Contract Details
+       452    
+       453 +  **Auto-Calculated by API:**
+       454 +  - `userId` - Derived from the selected service
+       455 +  - `duration` - Copied from service definition
+       456 +  - `depositAmount` - Copied from service definition  
+       457 +  - `status` - Set to 'pending' initially
+       458 +  - `depositStatus` - Set to 'pending' initially
+       459 +  
+       460 +  **Required Widget Fields:**
+       461 +  - ✅ `serviceId` - Must exist and be active
+       462 +  - ✅ `customerName` - 2-100 characters 
+       463 +  - ✅ `customerEmail` - Valid email format
+       464 +  - ✅ `customerPhone` - 10-20 characters (now required)
+       465 +  - ✅ `bookingDate` - Valid ISO 8601 datetime
+       466 +  
+       467 +  **Optional Widget Fields:**
+       468 +  - `customerAddress` - Max 500 characters
+       469 +  - `notes` - Max 1000 characters
+       470 +  
+       471 +  **Response guarantees:**
+       472 +  - `booking` object with all calculated fields populated
+       473 +  - `clientSecret` for Stripe payment processing
+       474 +  - Automatic Stripe Connect routing to tradie's account
+       475 +  
+       476    ## 🧪 Testing
+       477    
+       478    ```bash
+
+
+⏺ Now let me add a section about the tech stack to reflect the latest updates:
+
+
+⏺ Update(README.md)
+
+  ⎿  Updated README.md with 4 additions and 2 removals        
+       20    | Component | Technology |
+       21    |-----------|-----------|
+       22    | **Framework** | React 19 |
+       23 -  | **Build Tool** | Vite 5 |
+       23 +  | **Build Tool** | Vite 6 |
+       24    | **Styling** | Tailwind CSS 3 |
+       25 -  | **Payments** | Stripe Elements |
+       25 +  | **Payments** | Stripe Elements 5 |
+       26    | **Icons** | Lucide React |
+       27    | **Language** | TypeScript 5 |
+       28 +  | **Type Safety** | Auto-generated API types |
+       29    | **Server** | Nginx (production) |
+       30 +  | **Validation** | Zod (via shared API schemas) |
+       31    
+       32    ## 🎨 Widget Flow
+       33    
+
+
+⏺ Let me check if there are any build issues by verifying that the widget compiles correctly with the fixed booking payload:
+
+
+⏺ Bash(cd /Users/nickririnui/Desktop/PeepoPay/packages/widget && npm run build)
+  ⎿  Waiting…
+
+  ⎿  Error: npm error Lifecycle script `build` failed with error:
+     npm error code 2
+     npm error path /Users/nickririnui/Desktop/PeepoPay/packages/widget
+     npm error workspace @peepopay/widget@1.0.0
+     npm error location /Users/nickririnui/Desktop/PeepoPay/packages/widget
+     npm error command failed
+     npm error command sh -c tsc && vite build
+
+
+     > @peepopay/widget@1.0.0 build
+     … +5 lines (ctrl+r to see all)
+
+
+⏺ There are some issues. Let me check if the widget has the correct Stripe dependencies:
+
+
+⏺ Bash(cd /Users/nickririnui/Desktop/PeepoPay/packages/widget && npm install)
+  ⎿  Waiting…
+
+  ⎿  added 30 packages, and audited 1177 packages in 3s
+
+     267 packages are looking for funding
+     … +3 lines (ctrl+r to expand)
+
+
+⏺ Now let me fix the TypeScript error in the widget:
+
+
+⏺ Read(src/App.tsx)
+
+  ⎿  Read 24 lines (ctrl+r to expand)
+
+
+⏺ The Stripe import looks correct. Let me check the specific line 101 error in BookingWidget:
+
+
+⏺ Read(src/components/BookingWidget.tsx)
+
+  ⎿  Read 10 lines (ctrl+r to expand)
+
+
+⏺ Let me check if the CreateBookingResponse type is properly exported:
+
+
+⏺ Search(pattern: "CreateBookingResponse", path: "src/types/api.ts", output_mode: "content")
+
+  ⎿  Found 4 lines (ctrl+r to expand)
+
+
+⏺ The type exists. Let me build again to see if the dependencies are now resolved:
+
+
+⏺ Bash(npm run build)
+  ⎿  Waiting…
+
+  ⎿  Error: npm error Lifecycle script `build` failed with error:
+     npm error code 2
+     npm error path /Users/nickririnui/Desktop/PeepoPay/packages/widget
+     npm error workspace @peepopay/widget@1.0.0
+     npm error location /Users/nickririnui/Desktop/PeepoPay/packages/widget
+     npm error command failed
+     npm error command sh -c tsc && vite build
+
+
+     > @peepopay/widget@1.0.0 build
+     … +3 lines (ctrl+r to see all)
+
+
+⏺ The error is still there. Let me check what line 101 is after our edit:
+
+
+⏺ Read(src/components/BookingWidget.tsx)
+
+  ⎿  Read 10 lines (ctrl+r to expand)
+
+
+⏺ Let me check the CreateBookingResponse type structure more closely:
+
+
+⏺ Search(pattern: ""/api/bookings".*post", path: "src/types/api.ts", output_mode: "content")
+
+  ⎿  Found 495 lines (ctrl+r to expand)
+
+
+
+⏺ I can see that the POST endpoint for /api/bookings returns a 201 status code, not 200. Let me check how ApiResponse handles this:
+
+
+⏺ Search(pattern: "ApiResponse.*201", path: "src/types/api.ts", output_mode: "content")
+
+  ⎿  Found 0 lines 
+
+
+⏺ The ApiResponse type only looks for 200 status codes, but the POST booking endpoint returns 201. Let me check how this is handled in the type definitions:
+
+
+⏺ Search(pattern: "200.*content.*application/json.*infer T", path: "src/types/api.ts", output_mode: "content")
+
+  ⎿  Found 6 lines (ctrl+r to expand)
+
+
+⏺ That's the issue! The ApiResponse type only extracts 200 status codes, but POST booking returns 201. I need to fix the type helper. Let me update the API sync script to handle this:
+
+
+⏺ Read(../api/scripts/sync-types.ts)
+
+  ⎿  Read 50 lines (ctrl+r to expand)
+
+
+⏺ I need to update the ApiResponse type to handle both 200 and 201 status codes:
+
+
+⏺ Update(../api/scripts/sync-types.ts)
+
+  ⎿  Updated ../api/scripts/sync-types.ts with 2 additions                                                        
+       105      Method extends keyof paths[Path]
+       106    > = paths[Path][Method] extends { responses: { 200: { content: { 'application/json': infer T } } } }
+       107      ? T
+       108 +    : paths[Path][Method] extends { responses: { 201: { content: { 'application/json': infer U } } } }
+       109 +    ? U
+       110      : never;
+       111    
+       112    /**
+
+
+⏺ Now I need to run the sync script to update the types in both dashboard and widget:
+
+
+⏺ Bash(cd /Users/nickririnui/Desktop/PeepoPay/packages/api && npm run sync-types)
+  ⎿  Waiting…
+
+  ⎿  > @peepopay/api@1.0.0 sync-types
+     > tsx scripts/sync-types.ts
+     … +42 lines (ctrl+r to expand)
+
+
+
+⏺ Perfect! Now the types are updated and should handle the 201 status code. Let me try building the widget again:
+
+
+⏺ Bash(cd /Users/nickririnui/Desktop/PeepoPay/packages/widget && npm run build)
+  ⎿  Waiting…
+
+  ⎿  > @peepopay/widget@1.0.0 build
+     > tsc && vite build
+     … +9 lines (ctrl+r to expand)
+
+
+======================================================================================= Previous Conversation Compacted =======================================================================================
+⏺ Compact summary (ctrl+r to expand)
+  ⎿  Read src/types/api.ts (1057 lines)
+  ⎿  Read ../dashboard/src/types/api.ts (1057 lines)
+  ⎿  Read ../api/.generated/api-types.ts (1057 lines)
+  ⎿  Read ../api/scripts/sync-types.ts (231 lines)
+  ⎿  Todo list read (4 items)
+  ⎿  Claude usage limit reached. Your limit will reset at 5am (Pacific/Auckland).
+
+      • /upgrade to increase your usage limit.
+
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ >                                                                                                                                                                                                                │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+  ⏵⏵ auto-accept edits on (shift+tab to cycle)                                                                                                                                                                   ◯

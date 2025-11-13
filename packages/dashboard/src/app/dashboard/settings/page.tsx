@@ -26,9 +26,9 @@ export default function SettingsPage() {
   useEffect(() => {
     if (user) {
       setProfileData({
-        name: user.name,
+        name: user.name || '',
         email: user.email,
-        slug: user.slug,
+        slug: user.slug || '',
       });
     }
   }, [user]);

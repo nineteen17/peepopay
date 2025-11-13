@@ -11,7 +11,7 @@ const webhooksService = new WebhooksService();
  */
 
 // Stripe webhook handler
-router.post('/stripe', async (req: Request, res: Response) => {
+router.post('/stripe', async (req: Request, res: Response): Promise<void> => {
   const sig = req.headers['stripe-signature'] as string;
 
   try {
@@ -26,7 +26,7 @@ router.post('/stripe', async (req: Request, res: Response) => {
     res.json({ received: true });
   } catch (err: any) {
     console.error('Webhook error:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    res.status(400).send(`Webhook Error: ${err.message}`);
   }
 });
 
