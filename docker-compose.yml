@@ -76,6 +76,7 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/peepopay
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=amqp://admin:${RABBITMQ_PASSWORD:-admin123}@rabbitmq:5672
+      - API_PORT=4000
     ports:
       - "4000:4000"
     depends_on:
