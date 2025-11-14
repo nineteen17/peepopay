@@ -13,7 +13,7 @@ export default function Home() {
             Peepo<span className="text-primary">Pay</span>
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
-            Production-grade booking and payment platform for tradies
+            Production-grade booking and payment infrastructure for service businesses
           </p>
 
           <div className="flex gap-4 justify-center pt-6">
