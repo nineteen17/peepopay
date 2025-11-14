@@ -20,7 +20,7 @@ interface BookingCompletedEmailProps {
   recipientEmail: string;
   recipientName: string;
   bookingDate?: string;
-  recipientType: 'customer' | 'tradie';
+  recipientType: 'customer' | 'provider';
 }
 
 export const BookingCompletedEmail = ({
@@ -63,7 +63,7 @@ export const BookingCompletedEmail = ({
                   <strong>Thank you for using PeepoPay!</strong>
                 </Text>
                 <Text style={successText}>
-                  Your feedback helps other customers make informed decisions and helps tradies improve their services.
+                  Your feedback helps other customers make informed decisions and helps providers improve their services.
                 </Text>
               </Section>
             </>

@@ -21,7 +21,7 @@ PeepoPay uses **PostgreSQL 16** with **Drizzle ORM** for type-safe database acce
 ```
 ┌─────────────────────┐
 │       Users         │
-│     (Tradies)       │
+│    (Providers)      │
 ├─────────────────────┤
 │ id (UUID)           │◄────────┐
 │ email               │         │
@@ -56,7 +56,7 @@ PeepoPay uses **PostgreSQL 16** with **Drizzle ORM** for type-safe database acce
 
 ### 1. Users
 
-**Purpose**: Store tradie account information and Stripe Connect details
+**Purpose**: Store provider account information and Stripe Connect details
 
 **File**: `packages/api/src/db/schema/users.ts`
 
@@ -102,7 +102,7 @@ export const users = pgTable('users', {
 
 ### 2. Services
 
-**Purpose**: Store service offerings by tradies
+**Purpose**: Store service offerings by providers
 
 **File**: `packages/api/src/db/schema/services.ts`
 
@@ -214,7 +214,7 @@ failed  refunded
 ```
 
 **Notes**:
-- `userId` = tradie (service owner), NOT customer
+- `userId` = provider (service owner), NOT customer
 - `bookingDate` stored in UTC, convert using user's timezone
 - `depositStatus` tracks payment, `status` tracks booking lifecycle
 
@@ -222,7 +222,7 @@ failed  refunded
 
 ### 4. Availability
 
-**Purpose**: Define tradie availability rules by day of week
+**Purpose**: Define provider availability rules by day of week
 
 **File**: `packages/api/src/db/schema/availability.ts`
 
@@ -339,10 +339,10 @@ export const blockedSlotsRelations = relations(blockedSlots, ({ one }) => ({
 
 ## Common Queries
 
-### Get Tradie with Active Services
+### Get Provider with Active Services
 
 ```typescript
-const tradie = await db.query.users.findFirst({
+const provider = await db.query.users.findFirst({
   where: eq(users.slug, 'john-plumber'),
   with: {
     services: {

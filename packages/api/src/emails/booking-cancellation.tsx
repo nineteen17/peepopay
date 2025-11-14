@@ -19,7 +19,7 @@ interface BookingCancellationEmailProps {
   recipientEmail: string;
   recipientName: string;
   bookingDate?: string;
-  recipientType: 'customer' | 'tradie';
+  recipientType: 'customer' | 'provider';
   refundAmount?: number;
   refundTimeframe?: string;
 }
@@ -114,8 +114,8 @@ export const BookingCancellationEmail = ({
           )}
 
           {!isCustomer && (
-            <Section style={tradieNotice}>
-              <Text style={tradieText}>
+            <Section style={providerNotice}>
+              <Text style={providerText}>
                 The time slot for this booking is now available. You can accept new bookings for
                 this time.
               </Text>
@@ -240,14 +240,14 @@ const refundText = {
   margin: '0 0 12px',
 };
 
-const tradieNotice = {
+const providerNotice = {
   margin: '24px 0',
   backgroundColor: '#f0fdf4',
   borderRadius: '8px',
   padding: '20px 40px',
 };
 
-const tradieText = {
+const providerText = {
   color: '#555',
   fontSize: '14px',
   lineHeight: '20px',

@@ -1,0 +1,747 @@
+# PeepoPay Multi-Vertical Platform & Refund Policy System - Implementation TODO
+
+> **Vision**: Transform PeepoPay from tradie-specific to industry-agnostic booking infrastructure
+>
+> **Focus**: Core technical implementation only - code changes, database updates, API logic
+>
+> **Timeline**: 4-6 weeks for core implementation
+>
+> **Last Updated**: 2025-11-15
+
+---
+
+## Phase 1: Terminology & Code Cleanup (Week 1)
+
+### 1.1 Documentation Updates
+
+- [ ] **README.md**
+  - [ ] Change "Production-grade booking and payment platform for tradies" to "Production-grade booking and payment infrastructure for service businesses"
+  - [ ] Add multi-vertical examples (dentists, lawyers, mechanics, salons, tradies)
+  - [ ] Update feature list: "provider" instead of "tradie"
+  - [ ] Update architecture diagram comments
+
+- [ ] **Docs/architecture/*.md**
+  - [ ] Find/replace "tradie" → "provider" across all architecture docs
+  - [ ] Update "Tradie Dashboard" → "Business Dashboard"
+  - [ ] Update example scenarios to show multiple industries
+
+- [ ] **Docs/refund-policy.md**
+  - [ ] Replace "Bad Weather Protection" section with "Industry-Specific Protection Addons"
+  - [ ] Add examples across verticals: Sick Day (medical), Court Delay (legal), Parts Delay (automotive)
+  - [ ] Add table comparing policy needs across industries
+
+### 1.2 Code Comments & Variable Names
+
+- [ ] **packages/api/src/modules/users/**
+  - [ ] Review comments, update tradie → provider where appropriate
+  - [ ] Variable names already generic (no changes needed)
+
+- [ ] **packages/api/src/modules/services/**
+  - [ ] Update comments to be industry-neutral
+
+- [ ] **packages/api/src/modules/bookings/**
+  - [ ] Update comments: "tradie" → "provider" or "service provider"
+  - [ ] Update log messages to be generic
+
+- [ ] **packages/dashboard/**
+  - [ ] Update UI text strings to be generic
+  - [ ] Change "Tradie Dashboard" → "Business Dashboard" in titles
+  - [ ] Review tooltips and help text
+
+- [ ] **packages/widget/**
+  - [ ] Ensure all text is completely generic (no industry-specific terms)
+
+### 1.3 Email Templates
+
+- [ ] **packages/api/src/emails/**
+  - [ ] Review all templates for tradie-specific language
+  - [ ] Update to generic "provider" or "business" terminology
+  - [ ] Ensure templates work for any industry
+
+### 1.4 API Response Messages
+
+- [ ] **Error messages**
+  - [ ] "Tradie has not set up payments" → "Provider has not set up payments"
+  - [ ] Review all AppError messages for generic wording
+
+- [ ] **Console logs**
+  - [ ] Update log messages using "tradie" to "provider"
+
+---
+
+## Phase 2: Database Schema - Refund Policy System (Week 2)
+
+### 2.1 Create Migration File
+
+- [ ] **Create**: `packages/api/drizzle/0002_refund_policy_system.sql`
+
+### 2.2 Services Table - Add Policy Fields
+
+- [ ] **Migration SQL**:
+  - [ ] Add `cancellation_window_hours` integer DEFAULT 24
+  - [ ] Add `late_cancellation_fee` integer NULL (in cents)
+  - [ ] Add `no_show_fee` integer NULL (in cents)
+  - [ ] Add `allow_partial_refunds` boolean DEFAULT true
+  - [ ] Add `auto_refund_on_cancel` boolean DEFAULT true
+  - [ ] Add `flex_pass_enabled` boolean DEFAULT false
+  - [ ] Add `flex_pass_price` integer NULL (in cents)
+  - [ ] Add `flex_pass_revenue_share_percent` integer DEFAULT 60
+  - [ ] Add `flex_pass_rules_json` jsonb NULL
+  - [ ] Add `minimum_cancellation_hours` integer DEFAULT 2
+  - [ ] Add `protection_addons` jsonb NULL
+  - [ ] Add indexes on new fields
+
+- [ ] **Update Schema**: `packages/api/src/db/schema/services.ts`
+  - [ ] Add all new fields with proper TypeScript types
+  - [ ] Add Zod validation schemas
+  - [ ] Add JSDoc comments
+  - [ ] Update insertServiceSchema with validation
+
+### 2.3 Bookings Table - Add Policy Tracking Fields
+
+- [ ] **Migration SQL**:
+  - [ ] Add `cancellation_time` timestamp NULL
+  - [ ] Add `cancellation_reason` text NULL
+  - [ ] Add `flex_pass_purchased` boolean DEFAULT false
+  - [ ] Add `flex_pass_fee` integer NULL (in cents)
+  - [ ] Add `policy_snapshot_json` jsonb NOT NULL
+  - [ ] Add `refund_amount` integer NULL (in cents)
+  - [ ] Add `refund_reason` text NULL
+  - [ ] Add `fee_charged` integer NULL (in cents)
+  - [ ] Add `dispute_status` text DEFAULT 'none' (enum: 'none', 'pending', 'resolved_customer', 'resolved_tradie')
+  - [ ] Add `dispute_reason` text NULL
+  - [ ] Add `dispute_created_at` timestamp NULL
+  - [ ] Add `dispute_resolved_at` timestamp NULL
+  - [ ] Add `vertical_data` jsonb NULL
+  - [ ] Add 'no_show' to status enum
+  - [ ] Add indexes on cancellation_time, dispute_status, flex_pass_purchased
+
+- [ ] **Update Schema**: `packages/api/src/db/schema/bookings.ts`
+  - [ ] Add all new fields with proper TypeScript types
+  - [ ] Update BookingStatus type to include 'no_show'
+  - [ ] Add Zod validation schemas
+  - [ ] Add JSDoc comments
+  - [ ] Update insertBookingSchema
+
+### 2.4 Users Table - Add Industry Vertical
+
+- [ ] **Migration SQL**:
+  - [ ] Add `industry_vertical` text DEFAULT 'general' (enum: 'general', 'trade', 'medical', 'legal', 'automotive', 'beauty', 'consulting')
+  - [ ] Add `industry_subcategory` text NULL
+  - [ ] Add `enabled_features` jsonb NULL
+  - [ ] Add `vertical_tier` text DEFAULT 'core' (enum: 'core', 'vertical', 'white_label')
+  - [ ] Add index on industry_vertical
+
+- [ ] **Update Schema**: `packages/api/src/db/schema/users.ts`
+  - [ ] Add all new fields with proper TypeScript types
+  - [ ] Add Zod validation schemas
+  - [ ] Add JSDoc comments
+
+### 2.5 Run Migration
+
+- [ ] Generate migration: `npm run db:generate`
+- [ ] Review generated SQL
+- [ ] Test locally: `npm run db:migrate`
+- [ ] Verify in Drizzle Studio: `npm run db:studio`
+- [ ] Update MIGRATIONS_DOCKER.md with new migration
+
+---
+
+## Phase 3: Policy Snapshot System (Week 3)
+
+### 3.1 Create Policy Snapshot Module
+
+- [ ] **Create**: `packages/api/src/lib/policySnapshot.ts`
+  - [ ] Type: `PolicySnapshot` interface with all policy fields
+  - [ ] Function: `createPolicySnapshot(service): PolicySnapshot`
+  - [ ] Function: `getPolicyFromSnapshot(booking): PolicySnapshot`
+  - [ ] Function: `validatePolicySnapshot(snapshot): boolean`
+  - [ ] Add error handling
+  - [ ] Add TypeScript types
+
+### 3.2 Update Booking Creation
+
+- [ ] **Update**: `packages/api/src/modules/bookings/bookings.service.ts`
+  - [ ] In `createBooking()` method (~line 178):
+    - [ ] Import policySnapshot functions
+    - [ ] Call `createPolicySnapshot(service)`
+    - [ ] Store snapshot in `policySnapshotJson` field
+    - [ ] Include `serviceVersion: service.updatedAt` in snapshot
+    - [ ] Add logging: "Policy snapshot created for booking {id}"
+
+---
+
+## Phase 4: Refund Calculation Engine (Week 3-4)
+
+### 4.1 Create Refund Calculator Module
+
+- [ ] **Create**: `packages/api/src/lib/refundCalculator.ts`
+  - [ ] Type: `RefundResult` interface:
+    ```typescript
+    {
+      refundAmount: number;
+      feeCharged: number;
+      reason: string;
+      explanation: string;
+    }
+    ```
+  - [ ] Function: `calculateRefundAmount(booking, cancellationTime): RefundResult`
+    - [ ] Parse policy from snapshot
+    - [ ] Check if flex pass purchased → full refund
+    - [ ] Calculate hours until booking
+    - [ ] Check cancellation window
+    - [ ] Apply late cancellation fee if outside window
+    - [ ] Handle no-refund policies
+    - [ ] Return structured result
+  - [ ] Function: `calculateNoShowFee(booking): number`
+  - [ ] Function: `calculateFlexPassSplit(flexPassPrice, revenueSharePercent): { platform: number, provider: number }`
+  - [ ] Add validation: refund never exceeds deposit paid
+  - [ ] Add timezone handling
+
+### 4.2 Update Cancellation Logic
+
+- [ ] **Update**: `packages/api/src/modules/bookings/bookings.service.ts`
+  - [ ] In `cancelBooking()` method (~line 256):
+    - [ ] Import refundCalculator
+    - [ ] Call `calculateRefundAmount(booking, new Date())`
+    - [ ] Store `cancellationTime` in database
+    - [ ] Store `refundAmount` in database
+    - [ ] Store `feeCharged` in database
+    - [ ] Store `refundReason` in database
+    - [ ] Add `cancellationReason` parameter to method signature
+    - [ ] Update Stripe refund to use calculated amount (partial refunds)
+    - [ ] Update status based on policy
+    - [ ] Update email to include refund breakdown
+
+### 4.3 Update Stripe Refund Function
+
+- [ ] **Update**: `packages/api/src/lib/stripe.ts`
+  - [ ] Update `createRefund()` signature to accept amount parameter
+  - [ ] Support partial refunds (not just full)
+  - [ ] Add metadata to Stripe refund with reason
+  - [ ] Handle refund failures gracefully
+
+---
+
+## Phase 5: No-Show Detection System (Week 4)
+
+### 5.1 Create No-Show Detection Module
+
+- [ ] **Create**: `packages/api/src/lib/noShowDetection.ts`
+  - [ ] Function: `checkForNoShows(): Promise<Booking[]>`
+    - [ ] Find bookings where:
+      - [ ] status = 'confirmed'
+      - [ ] bookingDate < (now - 2 hours) // grace period
+    - [ ] Return list of no-show bookings
+  - [ ] Function: `markAsNoShow(bookingId, userId): Promise<Booking>`
+    - [ ] Validate booking ownership
+    - [ ] Update status to 'no_show'
+    - [ ] Charge no-show fee if configured
+    - [ ] Send notification
+    - [ ] Return updated booking
+  - [ ] Function: `chargeNoShowFee(booking): Promise<StripeCharge>`
+    - [ ] Get policy from snapshot
+    - [ ] Create Stripe charge for no-show fee
+    - [ ] Store fee in booking
+    - [ ] Handle Stripe errors
+
+### 5.2 Update Booking State Machine
+
+- [ ] **Update**: `packages/api/src/modules/bookings/bookings.service.ts`
+  - [ ] Update `VALID_STATUS_TRANSITIONS`:
+    - [ ] Add: `confirmed: ['completed', 'cancelled', 'no_show']`
+    - [ ] Add: `no_show: ['refunded']` (for disputes)
+  - [ ] Update `validateStatusTransition()` to handle 'no_show'
+
+### 5.3 Add Worker Job for No-Show Detection
+
+- [ ] **Update**: `packages/api/src/worker.ts`
+  - [ ] Add scheduled job (runs every hour)
+  - [ ] Call `checkForNoShows()`
+  - [ ] Process each no-show booking
+  - [ ] Add error handling and logging
+  - [ ] Track metrics (no-shows detected, fees charged)
+
+### 5.4 Add Manual No-Show Endpoint
+
+- [ ] **Create Route**: `POST /api/bookings/:id/mark-no-show`
+  - [ ] Add to `packages/api/src/modules/bookings/bookings.controller.ts`
+  - [ ] Require authentication
+  - [ ] Validate booking ownership
+  - [ ] Call `markAsNoShow()`
+  - [ ] Return updated booking
+
+---
+
+## Phase 6: Flex Pass Implementation (Week 5)
+
+### 6.1 Update Payment Intent Creation
+
+- [ ] **Update**: `packages/api/src/lib/stripe.ts`
+  - [ ] Update `createPaymentIntent()` signature to accept flex pass info
+  - [ ] Calculate total amount: deposit + flex pass fee
+  - [ ] Calculate application fee split:
+    - [ ] Base platform fee (2.5% of deposit)
+    - [ ] Flex pass platform fee (60% of flex pass price)
+    - [ ] Total application fee
+  - [ ] Add metadata to track fee breakdown
+  - [ ] Store flex pass details in payment intent metadata
+
+### 6.2 Update Booking Creation with Flex Pass
+
+- [ ] **Update**: `packages/api/src/modules/bookings/bookings.service.ts`
+  - [ ] In `createBooking()` method:
+    - [ ] Accept `flexPassPurchased` boolean parameter
+    - [ ] Validate service has flex pass enabled
+    - [ ] Include flex pass price in payment intent amount
+    - [ ] Store `flexPassPurchased` and `flexPassFee` in booking
+    - [ ] Update total amount calculation
+
+### 6.3 Widget - Add Flex Pass Option
+
+- [ ] **Update**: `packages/widget/src/components/BookingForm.tsx`
+  - [ ] Fetch service policy data from API
+  - [ ] Show checkbox: "Add Cancellation Protection for $X" (if enabled)
+  - [ ] Display benefits clearly
+  - [ ] Update price display dynamically
+  - [ ] Send `flexPassPurchased` to API
+  - [ ] Add tooltip explaining flex pass
+
+- [ ] **Update API**: Service endpoint to include policy data
+  - [ ] GET `/api/services/:id` include flex pass info in response
+
+### 6.4 Update Refund Logic for Flex Pass
+
+- [ ] **Update**: `packages/api/src/lib/refundCalculator.ts`
+  - [ ] In `calculateRefundAmount()`:
+    - [ ] Check `booking.flexPassPurchased` first
+    - [ ] If true → return full refund regardless of timing
+    - [ ] Set reason: 'flex_pass_protection'
+    - [ ] Otherwise continue with normal policy logic
+
+---
+
+## Phase 7: Dispute Handling (Week 5)
+
+### 7.1 Create Dispute Endpoints
+
+- [ ] **Create Route**: `POST /api/bookings/:id/dispute`
+  - [ ] Add to `packages/api/src/modules/bookings/bookings.controller.ts`
+  - [ ] Accept: `disputeReason` (text, required)
+  - [ ] Require authentication
+  - [ ] Validate booking exists and user authorized
+  - [ ] Call service method
+  - [ ] Return dispute details
+
+- [ ] **Add Service Method**: `packages/api/src/modules/bookings/bookings.service.ts`
+  - [ ] `createDispute(bookingId, userId, reason): Promise<Booking>`
+  - [ ] Update `dispute_status` to 'pending'
+  - [ ] Store `dispute_reason` and `dispute_created_at`
+  - [ ] Queue notification emails
+  - [ ] Return updated booking
+
+- [ ] **Create Route**: `POST /api/bookings/:id/dispute/resolve`
+  - [ ] Admin-only endpoint (add admin middleware)
+  - [ ] Accept: `resolution` ('customer' | 'provider'), `notes`
+  - [ ] Update `dispute_status` to resolved
+  - [ ] Store `dispute_resolved_at`
+  - [ ] Process refund if needed
+  - [ ] Queue notifications
+  - [ ] Return result
+
+### 7.2 Email Notifications for Disputes
+
+- [ ] **Create**: `packages/api/src/emails/dispute-created.tsx`
+  - [ ] Provider version: "Customer disputed booking #X"
+  - [ ] Customer version: "Your dispute has been received"
+
+- [ ] **Create**: `packages/api/src/emails/dispute-resolved.tsx`
+  - [ ] Show outcome
+  - [ ] Show refund details if applicable
+  - [ ] Explain reasoning
+
+- [ ] **Update Queue**: `packages/api/src/lib/queue.ts`
+  - [ ] Add `publishDisputeCreated()`
+  - [ ] Add `publishDisputeResolved()`
+
+- [ ] **Update Worker**: Handle dispute emails
+
+---
+
+## Phase 8: Dashboard - Policy Configuration UI (Week 6)
+
+### 8.1 Create Policy Settings Page
+
+- [ ] **Create**: `packages/dashboard/src/app/settings/policies/page.tsx`
+  - [ ] Fetch current service policy
+  - [ ] Section: Cancellation Window (hours input)
+  - [ ] Section: Late Cancellation Fee (dollar input, converts to cents)
+  - [ ] Section: No-Show Fee (dollar input, converts to cents)
+  - [ ] Section: Refund Settings
+    - [ ] Toggle: Allow partial refunds
+    - [ ] Toggle: Automatic refunds
+  - [ ] Section: Cancellation Protection (Flex Pass)
+    - [ ] Toggle: Enable
+    - [ ] Input: Price (dollar input, converts to cents)
+    - [ ] Slider: Platform revenue share (60-70%)
+    - [ ] Preview: "Customer pays $X, you receive $Y"
+  - [ ] Save button with validation
+  - [ ] Show policy preview for customers
+
+- [ ] **Add Navigation**
+  - [ ] Add "Cancellation Policies" to settings sidebar
+  - [ ] Update dashboard layout
+
+### 8.2 Create API Endpoint for Policy Update
+
+- [ ] **Create Route**: `PUT /api/services/:id/policy`
+  - [ ] Add to `packages/api/src/modules/services/services.controller.ts`
+  - [ ] Accept all policy fields
+  - [ ] Validate values (fees must be positive, window hours reasonable)
+  - [ ] Update service record
+  - [ ] Invalidate cache if using Redis
+  - [ ] Return updated service
+
+---
+
+## Phase 9: Industry Vertical System (Week 6)
+
+### 9.1 Update Onboarding Flow
+
+- [ ] **Update**: `packages/dashboard/src/app/onboarding/page.tsx`
+  - [ ] Add step: "What type of business are you?"
+  - [ ] Dropdown with options:
+    - [ ] General / Other
+    - [ ] Trade Services (plumber, electrician, etc.)
+    - [ ] Medical & Health (dentist, doctor, physio, etc.)
+    - [ ] Legal Services (lawyer, notary, etc.)
+    - [ ] Automotive (mechanic, detailer, etc.)
+    - [ ] Beauty & Wellness (barber, salon, spa, etc.)
+    - [ ] Professional Services (consultant, accountant, etc.)
+  - [ ] Free text input for subcategory
+  - [ ] Send to API on submission
+
+- [ ] **Update API**: Onboarding endpoint
+  - [ ] Accept `industry_vertical` and `industry_subcategory`
+  - [ ] Validate enum values
+  - [ ] Store in database
+  - [ ] Return user with industry info
+
+### 9.2 Create Vertical Defaults Module
+
+- [ ] **Create**: `packages/api/src/lib/verticalDefaults.ts`
+  - [ ] Type: `VerticalPolicyDefaults` interface
+  - [ ] Function: `getDefaultPolicyForVertical(vertical): VerticalPolicyDefaults`
+  - [ ] Define defaults for each vertical:
+    - [ ] Trade: 24hr window, $30 late fee, $50 no-show, flex pass $5
+    - [ ] Medical: 48hr window, $40 late fee, $80 no-show, flex pass $10
+    - [ ] Legal: 72hr window, $100 late fee, $200 no-show, flex pass $20
+    - [ ] Automotive: 24hr window, $25 late fee, $40 no-show, flex pass $5
+    - [ ] Beauty: 12hr window, $15 late fee, $30 no-show, flex pass $3
+    - [ ] Consulting: 48hr window, $50 late fee, $100 no-show, flex pass $10
+    - [ ] General: 24hr window, $20 late fee, $40 no-show, flex pass $5
+
+### 9.3 Apply Defaults on Service Creation
+
+- [ ] **Update**: `packages/api/src/modules/services/services.service.ts`
+  - [ ] When creating first service for user:
+    - [ ] Get user's industry_vertical
+    - [ ] Call `getDefaultPolicyForVertical()`
+    - [ ] Pre-fill policy fields with defaults
+    - [ ] User can override during creation or later
+
+---
+
+## Phase 10: Protection Addons Architecture (Week 7)
+
+### 10.1 Create Addon System
+
+- [ ] **Create**: `packages/api/src/lib/protectionAddons.ts`
+  - [ ] Type: `ProtectionAddon` interface:
+    ```typescript
+    {
+      id: string;
+      name: string;
+      description: string;
+      price: number; // cents
+      applicableVerticals: string[];
+      rules: {
+        allowCancellationWithin: number; // hours
+        refundPolicy: 'full' | 'partial' | 'none';
+        requiresApproval: boolean;
+        conditions: Record<string, any>;
+      }
+    }
+    ```
+  - [ ] Function: `getAddonsForVertical(vertical): ProtectionAddon[]`
+  - [ ] Function: `validateAddonPurchase(addon, booking): boolean`
+  - [ ] Function: `applyAddonRules(addon, booking, cancellationTime): RefundResult`
+
+### 10.2 Define Built-in Addons
+
+- [ ] **Built-in Addons**:
+  - [ ] Bad Weather Protection (Trade) - $5-10
+  - [ ] Sick Day Protection (Medical) - $8-12
+  - [ ] Court Delay Protection (Legal) - $15-25
+  - [ ] Parts Delay Protection (Automotive) - $10
+  - [ ] Store in code or database (decision needed)
+
+### 10.3 Update Booking Schema for Addons
+
+- [ ] **Add to bookings table** (if not already):
+  - [ ] `addons_purchased` jsonb NULL
+  - [ ] Stores: `[{ addonId, name, price, rules }]`
+
+### 10.4 Integrate Addons into Refund Logic
+
+- [ ] **Update**: `packages/api/src/lib/refundCalculator.ts`
+  - [ ] Check `booking.addons_purchased` array
+  - [ ] For each addon, call `applyAddonRules()`
+  - [ ] If addon conditions met → override policy
+  - [ ] Return addon-based refund result
+
+---
+
+## Phase 11: Email Notifications - Policy Updates (Week 7)
+
+### 11.1 Create Refund Breakdown Email
+
+- [ ] **Create**: `packages/api/src/emails/cancellation-with-refund.tsx`
+  - [ ] Show booking details
+  - [ ] Show refund amount
+  - [ ] Show any fees charged
+  - [ ] Explain policy reason
+  - [ ] Show refund timeline (5-10 days)
+  - [ ] Include dispute link if applicable
+
+### 11.2 Create No-Show Notification Email
+
+- [ ] **Create**: `packages/api/src/emails/no-show-fee-charged.tsx`
+  - [ ] Notify customer of no-show
+  - [ ] Show fee charged
+  - [ ] Explain policy
+  - [ ] Provide dispute option
+  - [ ] Show payment breakdown
+
+### 11.3 Create Policy Reminder Email
+
+- [ ] **Create**: `packages/api/src/emails/policy-reminder.tsx`
+  - [ ] Remind customer 24hrs before booking
+  - [ ] Show cancellation deadline
+  - [ ] Show fee if they cancel late
+  - [ ] Include flex pass status if purchased
+  - [ ] Include link to cancel/reschedule
+
+### 11.4 Update Queue and Worker
+
+- [ ] **Update**: `packages/api/src/lib/queue.ts`
+  - [ ] Add `publishPolicyReminder()`
+  - [ ] Add `publishNoShowNotification()`
+
+- [ ] **Update**: `packages/api/src/worker.ts`
+  - [ ] Add worker for policy reminder emails
+  - [ ] Schedule reminder jobs 24hrs before booking
+  - [ ] Handle no-show fee notifications
+
+- [ ] **Update Booking Confirmation**
+  - [ ] Schedule policy reminder when booking confirmed
+  - [ ] Use Bull queue delay feature
+
+---
+
+## Phase 12: Testing & Verification (Week 8)
+
+### 12.1 Unit Tests - Critical Functions
+
+- [ ] **Test**: `packages/api/src/lib/refundCalculator.ts`
+  - [ ] Test within free cancellation window → full refund
+  - [ ] Test outside window → partial refund with fee
+  - [ ] Test no-refund policy → zero refund
+  - [ ] Test flex pass override → full refund
+  - [ ] Test addon override → follow addon rules
+  - [ ] Test edge cases (same-day booking, past booking)
+
+- [ ] **Test**: `packages/api/src/lib/policySnapshot.ts`
+  - [ ] Test snapshot creation includes all fields
+  - [ ] Test snapshot parsing returns valid object
+  - [ ] Test validation catches invalid snapshots
+
+- [ ] **Test**: `packages/api/src/lib/noShowDetection.ts`
+  - [ ] Test finds bookings past grace period
+  - [ ] Test marks booking as no-show
+  - [ ] Test charges correct fee from policy
+
+### 12.2 Manual Testing Checklist
+
+- [ ] Create test account for each vertical type
+- [ ] Configure different policies for each
+- [ ] Test booking creation with policy snapshot
+- [ ] Test cancellation within window → full refund
+- [ ] Test cancellation outside window → partial refund + fee
+- [ ] Test flex pass purchase and use → full refund
+- [ ] Test no-show detection (manual and automatic)
+- [ ] Test dispute creation and resolution
+- [ ] Verify all emails send correctly
+- [ ] Test dashboard policy configuration UI
+- [ ] Verify widget shows correct terminology (generic)
+
+---
+
+## Phase 13: Production Deployment (Week 9)
+
+### 13.1 Pre-Deployment
+
+- [ ] Review all code changes
+- [ ] Ensure all tests pass
+- [ ] Backup production database
+- [ ] Test migration on staging environment
+- [ ] Create rollback plan
+- [ ] Document deployment steps
+
+### 13.2 Database Migration
+
+- [ ] Schedule maintenance window (low traffic time)
+- [ ] Run migration: `docker-compose run --rm migrate`
+- [ ] Verify all tables and columns created
+- [ ] Verify indexes created
+- [ ] Check for migration errors
+
+### 13.3 Code Deployment
+
+- [ ] Deploy API changes
+- [ ] Deploy dashboard changes
+- [ ] Deploy widget changes
+- [ ] Verify health checks pass
+- [ ] Monitor logs for errors
+- [ ] Check Sentry for exceptions
+
+### 13.4 Post-Deployment Verification
+
+- [ ] Test booking flow end-to-end
+- [ ] Test cancellation with refund calculation
+- [ ] Test policy configuration in dashboard
+- [ ] Verify emails send correctly
+- [ ] Monitor metrics for first 24 hours
+- [ ] Gather initial user feedback
+
+---
+
+## Phase 14: Documentation Updates (Week 9)
+
+### 14.1 Technical Documentation
+
+- [ ] **Update**: `Docs/architecture/03-database-schema.md`
+  - [ ] Document all new fields in services table
+  - [ ] Document all new fields in bookings table
+  - [ ] Document all new fields in users table
+  - [ ] Add policy snapshot explanation
+  - [ ] Add status flow diagrams for 'no_show'
+
+- [ ] **Create**: `Docs/guides/refund-policy-system.md`
+  - [ ] Explain how policy system works
+  - [ ] Show refund calculation examples
+  - [ ] Document flex pass logic
+  - [ ] Document no-show detection
+  - [ ] Document dispute process
+
+- [ ] **Create**: `Docs/guides/multi-vertical-setup.md`
+  - [ ] Explain industry vertical selection
+  - [ ] Show default policies per vertical
+  - [ ] Explain terminology changes
+  - [ ] Show examples across industries
+
+### 14.2 API Documentation
+
+- [ ] **Update**: OpenAPI spec (`packages/api/src/openapi/generator.ts`)
+  - [ ] Document new policy fields
+  - [ ] Document dispute endpoints
+  - [ ] Document flex pass parameters
+  - [ ] Add examples for different scenarios
+
+- [ ] **Update**: Swagger UI descriptions
+  - [ ] Update endpoint descriptions to be generic
+  - [ ] Add multi-vertical examples
+  - [ ] Document policy configuration
+
+---
+
+## Final Checklist
+
+### Code Quality
+- [ ] All TypeScript types properly defined
+- [ ] All functions have JSDoc comments
+- [ ] All error cases handled gracefully
+- [ ] All database queries optimized with indexes
+- [ ] All API endpoints have proper authorization
+- [ ] All inputs validated with Zod schemas
+
+### Data Integrity
+- [ ] Policy snapshot always created on booking
+- [ ] Old bookings use old policy (snapshot not live data)
+- [ ] Refund amounts never exceed deposit paid
+- [ ] Fees calculated correctly with timezone handling
+- [ ] No race conditions in no-show detection
+
+### User Experience
+- [ ] All terminology generic (no tradie-specific language)
+- [ ] Clear error messages for policy violations
+- [ ] Email notifications explain refund breakdowns
+- [ ] Dashboard UI intuitive for policy configuration
+- [ ] Widget shows flex pass benefits clearly
+
+### Performance
+- [ ] Refund calculation runs in < 100ms
+- [ ] Policy snapshot creation doesn't slow booking
+- [ ] No-show detection job runs efficiently
+- [ ] Database queries use proper indexes
+
+### Security
+- [ ] All endpoints require authentication
+- [ ] Booking ownership validated before actions
+- [ ] Admin-only endpoints properly protected
+- [ ] No sensitive data in logs
+- [ ] Stripe API keys properly secured
+
+---
+
+## Delete This File
+
+- [ ] **After all tasks completed and verified in production:**
+  - [ ] Create summary of implementation in Docs
+  - [ ] Move lessons learned to documentation
+  - [ ] **Delete**: `TODO-MULTI-VERTICAL-REFUND-SYSTEM.md`
+  - [ ] Celebrate! 🎉
+
+---
+
+## Notes
+
+**Key Implementation Principles:**
+1. Policy snapshot is CRITICAL - never use live service policy for old bookings
+2. Always validate refund amounts don't exceed deposits
+3. Handle timezones correctly in all calculations
+4. Make everything industry-agnostic by default
+5. Test thoroughly before deploying refund logic (money involved!)
+
+**Success Metrics to Track Post-Launch:**
+- Refund calculation accuracy (manual spot checks)
+- No-show detection effectiveness (false positives/negatives)
+- Flex pass purchase rate
+- Cancellation rate changes
+- Dispute rate (should be < 2%)
+- Policy configuration adoption rate
+
+**Critical Paths to Test:**
+1. Booking → Cancel within window → Full refund
+2. Booking → Cancel outside window → Partial refund + fee
+3. Booking with flex pass → Cancel anytime → Full refund
+4. Booking → No-show → Fee charged
+5. Policy change → New booking → Uses new policy (old bookings use snapshot)
+
+---
+
+**Document Version**: 2.0 (Streamlined)
+**Created**: 2025-11-15
+**Last Updated**: 2025-11-15
+**Focus**: Technical implementation only
+**Status**: Ready for Implementation

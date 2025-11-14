@@ -1,14 +1,14 @@
 # PeepoPay
 
-**Production-grade booking and payment platform for tradies**
+**Production-grade booking and payment infrastructure for service businesses**
 
-PeepoPay enables tradies to accept booking deposits through an embeddable widget while maintaining full control of their Stripe accounts.
+PeepoPay enables service businesses to accept booking deposits through an embeddable widget while maintaining full control of their Stripe accounts. Perfect for trades, healthcare, legal services, automotive, beauty, consulting, and any appointment-based business.
 
 ## ✨ Features
 
 - 🎯 **Embeddable Booking Widget** - React 19/Vite widget for seamless customer bookings
-- 💰 **Stripe Connect Integration** - Direct-to-tradie payments with automatic platform fees
-- 📊 **Tradie Dashboard** - Next.js 16 dashboard for managing services and bookings
+- 💰 **Stripe Connect Integration** - Direct-to-provider payments with automatic platform fees
+- 📊 **Business Dashboard** - Next.js 16 dashboard for managing services and bookings
 - 🔐 **Better Auth** - Secure authentication with Google OAuth + Email/Password
 - ⚡ **Real-time Availability** - Manage availability and blocked time slots
 - 📧 **Automated Notifications** - Email confirmations via RabbitMQ worker service
@@ -203,11 +203,11 @@ Comprehensive documentation is available in the [`Docs/`](./Docs) directory:
 - All business logic in API
 
 #### Payment Flow
-💰 **Money flows directly to tradie Stripe accounts**
+💰 **Money flows directly to provider Stripe accounts**
 - Platform takes 2.5% fee automatically
 - No escrow or holding accounts
-- Tradie maintains full control
-- Instant payouts to tradie
+- Provider maintains full control
+- Instant payouts to provider
 
 #### Middleware Split
 🔀 **Two layers of middleware**
@@ -483,4 +483,4 @@ Built with:
 
 ---
 
-**Made with ❤️ for tradies who deserve better payment solutions**
+**Made with ❤️ for service businesses who deserve better booking and payment solutions**

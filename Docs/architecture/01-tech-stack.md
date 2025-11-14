@@ -19,7 +19,7 @@ PeepoPay uses a production-grade stack optimized for scalability, maintainabilit
 
 **Use Cases**:
 - Marketing website
-- Tradie dashboard
+- Business dashboard
 - Admin interface
 - Public pages
 
@@ -134,16 +134,16 @@ PeepoPay uses a production-grade stack optimized for scalability, maintainabilit
 
 ### Stripe Connect
 **Why Stripe Connect?**
-- ✅ Direct-to-tradie payments (no escrow needed)
+- ✅ Direct-to-provider payments (no escrow needed)
 - ✅ Platform fee automatically deducted
-- ✅ Tradie maintains full control
+- ✅ Provider maintains full control
 - ✅ Handles compliance/tax
 - ✅ Robust webhook system
 - ✅ Excellent documentation
 
 **Account Type**: Standard Connect
 - ✅ Simplest integration
-- ✅ Tradie gets full Stripe dashboard
+- ✅ Provider gets full Stripe dashboard
 - ✅ Fastest onboarding
 - ❌ Not: Express (more complex), Custom (compliance burden)
 

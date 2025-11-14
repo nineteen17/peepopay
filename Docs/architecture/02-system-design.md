@@ -60,7 +60,7 @@ Customer → Traefik → Widget (iframe)
 |---------|---------|------|----------|------------|
 | Traefik | Reverse proxy, SSL, routing | 80, 443 | 1 | Traefik v2.10 |
 | API | REST API, business logic | 4000 | 2-3 | Node.js/Express |
-| Dashboard | Tradie dashboard | 3000 | 1-2 | Next.js 14 |
+| Dashboard | Business dashboard | 3000 | 1-2 | Next.js 14 |
 | Widget Server | Static file server for widget | 8080 | 1 | Nginx Alpine |
 | Redis | Cache, sessions, rate limiting | 6379 | 1 | Redis 7 Alpine |
 | RabbitMQ | Message queue | 5672, 15672 | 1 | RabbitMQ 3 |
@@ -133,7 +133,7 @@ Customer visits: example.com
                      ↓
 1. Load static HTML/JS/CSS (from CDN/Traefik)
 2. JS executes in browser
-3. Fetch tradie data: GET /api/tradies/joe-plumber
+3. Fetch provider data: GET /api/providers/joe-plumber
 4. User fills form
 5. Create booking: POST /api/bookings
 6. Stripe payment: POST /api/payments/intent
@@ -290,7 +290,7 @@ Load Balancer
 |-----------|-------------|-----|--------------|
 | Available slots | Redis | 5 min | On booking creation/cancellation |
 | Service listings | Redis | 10 min | On service update |
-| Tradie profile | Redis | 10 min | On profile update |
+| Provider profile | Redis | 10 min | On profile update |
 | Session data | Redis | 7 days | On logout |
 | Static assets | CDN | 1 year | Version hash in filename |
 
@@ -480,7 +480,7 @@ Each module is **self-contained**:
 Example modules:
 - **auth**: Authentication, login, signup, session management
 - **users**: User profile, settings, Stripe onboarding
-- **services**: Service CRUD operations (tradie's offerings)
+- **services**: Service CRUD operations (provider's offerings)
 - **bookings**: Booking creation, management, cancellation
 - **webhooks**: Stripe webhook handlers
 
