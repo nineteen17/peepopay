@@ -108,6 +108,8 @@ services:
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=amqp://admin:${RABBITMQ_PASSWORD:-admin123}@rabbitmq:5672
     command: ["node", "dist/worker.js"]
+    healthcheck:
+      disable: true
     depends_on:
       postgres:
         condition: service_healthy
