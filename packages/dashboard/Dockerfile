@@ -12,29 +12,20 @@ RUN npm install --legacy-peer-deps
 # Copy source code
 COPY . .
 
-# Build Next.js application
+# Build Next.js application (outputs to dist/ due to next.config.js)
 RUN npm run build
 
-# Production stage
-FROM node:20-alpine
+# Production stage - serve static files
+FROM nginx:alpine
 
-WORKDIR /app
+# Copy built static files
+COPY --from=builder /app/dist /usr/share/nginx/html
 
-ENV NODE_ENV production
-
-# Copy package files
-COPY package*.json ./
-
-# Install production dependencies only
-RUN npm install --omit=dev --legacy-peer-deps
-
-# Copy built files from builder
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/next.config.js ./
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port
 EXPOSE 3000
 
-# Start the application
-CMD ["npm", "start"]
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]

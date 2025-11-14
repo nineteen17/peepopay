@@ -1,6 +1,6 @@
 {
   "checksum": "d0ef8f17c47771c612124155a4863834",
-  "timestamp": "2025-11-13T07:33:33.979Z",
+  "timestamp": "2025-11-14T01:57:52.944Z",
   "files": {
     "source": "/app/openapi.json",
     "generated": "/app/.generated/api-types.ts",

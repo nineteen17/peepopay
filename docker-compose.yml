@@ -107,7 +107,7 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/peepopay
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=amqp://admin:${RABBITMQ_PASSWORD:-admin123}@rabbitmq:5672
-    command: ["npm", "run", "start:worker"]
+    command: ["node", "dist/worker.js"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -131,7 +131,7 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/peepopay
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=amqp://admin:${RABBITMQ_PASSWORD:-admin123}@rabbitmq:5672
-    command: ["npm", "run", "db:migrate"]
+    command: ["node", "dist/db/migrate.js"]
     depends_on:
       postgres:
         condition: service_healthy

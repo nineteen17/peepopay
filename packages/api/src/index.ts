@@ -10,6 +10,7 @@ import { auth } from './lib/auth.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { initRedis, closeRedis } from './lib/redis.js';
 import { initRabbitMQ, closeRabbitMQ } from './lib/queue.js';
+import { initBull, closeBull } from './lib/bull.js';
 import { performHealthCheck } from './lib/health.js';
 
 // Module Controllers
@@ -27,6 +28,7 @@ async function initializeServices() {
   try {
     await initRedis();
     await initRabbitMQ();
+    await initBull();
     console.log('✅ All infrastructure services initialized');
   } catch (error) {
     console.error('❌ Failed to initialize services:', error);
@@ -129,6 +131,7 @@ async function gracefulShutdown(signal: string) {
   console.log(`\n${signal} signal received: closing services gracefully`);
 
   try {
+    await closeBull();
     await closeRedis();
     await closeRabbitMQ();
     console.log('✅ All services closed gracefully');

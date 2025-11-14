@@ -7,6 +7,9 @@ let channel: Channel | null = null;
 export const QUEUES = {
   EMAIL_NOTIFICATIONS: 'email_notifications',
   BOOKING_CONFIRMATIONS: 'booking_confirmations',
+  BOOKING_CANCELLATIONS: 'booking_cancellations',
+  BOOKING_COMPLETIONS: 'booking_completions',
+  PAYMENT_FAILURES: 'payment_failures',
   STRIPE_WEBHOOKS: 'stripe_webhooks',
   AUTH_EMAILS: 'auth_emails', // Auth-related emails (welcome, verification, password reset)
   FAILED_JOBS: 'failed_jobs', // Dead letter queue
@@ -146,6 +149,29 @@ export class QueueService {
     });
   }
 
+  async publishBookingCancellation(
+    bookingId: string,
+    customerEmail: string,
+    tradieEmail: string,
+    details: {
+      serviceName: string;
+      duration: number;
+      price: number;
+      customerName: string;
+      tradieName: string;
+      bookingDate: Date;
+      refundAmount?: number;
+    }
+  ): Promise<void> {
+    await this.publish(QUEUES.BOOKING_CANCELLATIONS, {
+      bookingId,
+      customerEmail,
+      tradieEmail,
+      details,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
   async publishStripeWebhook(event: any): Promise<void> {
     await this.publish(QUEUES.STRIPE_WEBHOOKS, {
       eventId: event.id,
@@ -164,6 +190,47 @@ export class QueueService {
       type,
       to,
       data,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  async publishPaymentFailure(
+    bookingId: string,
+    customerEmail: string,
+    details: {
+      serviceName: string;
+      customerName: string;
+      bookingDate: Date;
+      amount: number;
+      failureReason?: string;
+    }
+  ): Promise<void> {
+    await this.publish(QUEUES.PAYMENT_FAILURES, {
+      bookingId,
+      customerEmail,
+      details,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  async publishBookingCompletion(
+    bookingId: string,
+    customerEmail: string,
+    tradieEmail: string,
+    details: {
+      serviceName: string;
+      duration: number;
+      price: number;
+      customerName: string;
+      tradieName: string;
+      bookingDate: Date;
+    }
+  ): Promise<void> {
+    await this.publish(QUEUES.BOOKING_COMPLETIONS, {
+      bookingId,
+      customerEmail,
+      tradieEmail,
+      details,
       createdAt: new Date().toISOString(),
     });
   }

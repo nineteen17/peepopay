@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { AppError } from '../../middleware/errorHandler.js';
 import { createConnectAccount, createAccountLink, isAccountOnboarded } from '../../lib/stripe.js';
 import { config } from '../../config/index.js';
+import { scheduleOnboardingReminders, cancelOnboardingReminders } from '../../lib/bull.js';
 
 export interface UpdateUserData {
   name?: string;
@@ -87,6 +88,7 @@ export class UsersService {
     const user = await this.getUserById(userId);
 
     let accountId = user.stripeAccountId;
+    let isNewAccount = false;
 
     // Create Stripe account if doesn't exist
     if (!accountId) {
@@ -96,12 +98,28 @@ export class UsersService {
       });
 
       accountId = account.id;
+      isNewAccount = true;
 
       // Save account ID
       await db
         .update(users)
         .set({ stripeAccountId: accountId })
         .where(eq(users.id, userId));
+
+      // Schedule onboarding reminder emails (24h, 3 days, 7 days)
+      try {
+        const onboardingUrl = `${config.dashboardUrl}/settings/payments`;
+        await scheduleOnboardingReminders(
+          userId,
+          user.name || 'there',
+          user.email,
+          onboardingUrl
+        );
+        console.log(`✅ Scheduled onboarding reminders for user ${userId}`);
+      } catch (error) {
+        console.error(`❌ Failed to schedule onboarding reminders for user ${userId}:`, error);
+        // Don't fail the entire request if reminder scheduling fails
+      }
     }
 
     // Create account link for onboarding
@@ -131,6 +149,15 @@ export class UsersService {
         .update(users)
         .set({ stripeOnboarded: true })
         .where(eq(users.id, userId));
+
+      // Cancel all pending onboarding reminder emails
+      try {
+        await cancelOnboardingReminders(userId);
+        console.log(`✅ Cancelled onboarding reminders for user ${userId}`);
+      } catch (error) {
+        console.error(`❌ Failed to cancel onboarding reminders for user ${userId}:`, error);
+        // Don't fail the entire request if cancellation fails
+      }
     }
 
     return { onboarded };
@@ -181,6 +208,18 @@ export class UsersService {
         .returning();
 
       console.log(`Updated Stripe onboarding status for user ${user.id}: ${onboarded}`);
+
+      // If user just completed onboarding, cancel pending reminder emails
+      if (onboarded && !user.stripeOnboarded) {
+        try {
+          await cancelOnboardingReminders(user.id);
+          console.log(`✅ Cancelled onboarding reminders for user ${user.id} (webhook sync)`);
+        } catch (error) {
+          console.error(`❌ Failed to cancel onboarding reminders for user ${user.id}:`, error);
+          // Don't fail the entire request if cancellation fails
+        }
+      }
+
       return updated;
     }
 

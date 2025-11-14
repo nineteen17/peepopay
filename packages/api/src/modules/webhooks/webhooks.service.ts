@@ -40,8 +40,9 @@ export class WebhooksService {
    * Handle payment failed event
    */
   async handlePaymentFailed(paymentIntent: any) {
-    await this.bookingsService.handleFailedPayment(paymentIntent.id);
-    console.log('Payment failed for payment intent:', paymentIntent.id);
+    const failureReason = paymentIntent.last_payment_error?.message || 'Payment was declined';
+    await this.bookingsService.handleFailedPayment(paymentIntent.id, failureReason);
+    console.log('Payment failed for payment intent:', paymentIntent.id, 'Reason:', failureReason);
   }
 
   /**

@@ -2,8 +2,9 @@ import { db } from '../../db/index.js';
 import { bookings, services, insertBookingSchema, type NewBooking, type BookingStatus } from '../../db/schema/index.js';
 import { eq, and, lt, or } from 'drizzle-orm';
 import { AppError } from '../../middleware/errorHandler.js';
-import { createPaymentIntent } from '../../lib/stripe.js';
+import { createPaymentIntent, createRefund } from '../../lib/stripe.js';
 import { createQueueService } from '../../lib/queue.js';
+import { scheduleBookingReminder, cancelBookingReminder } from '../../lib/bull.js';
 
 export interface BookingFilters {
   status?: string;
@@ -198,9 +199,16 @@ export class BookingsService {
    * Update booking status
    */
   async updateBookingStatus(id: string, userId: string, status: BookingStatus) {
-    // Verify ownership
+    // Verify ownership and fetch full booking details
     const existing = await db.query.bookings.findFirst({
       where: and(eq(bookings.id, id), eq(bookings.userId, userId)),
+      with: {
+        service: {
+          with: {
+            user: true,
+          },
+        },
+      },
     });
 
     if (!existing) {
@@ -221,6 +229,24 @@ export class BookingsService {
       .where(eq(bookings.id, id))
       .returning();
 
+    // Send completion emails to both customer and tradie when status is completed
+    if (status === 'completed' && existing.service && existing.service.user) {
+      const queueService = createQueueService();
+      await queueService.publishBookingCompletion(
+        existing.id,
+        existing.customerEmail,
+        existing.service.user.email,
+        {
+          serviceName: existing.service.name,
+          duration: existing.service.duration,
+          price: existing.depositAmount,
+          customerName: existing.customerName,
+          tradieName: existing.service.user.name,
+          bookingDate: existing.bookingDate,
+        }
+      );
+    }
+
     return updated;
   }
 
@@ -228,8 +254,16 @@ export class BookingsService {
    * Cancel a booking
    */
   async cancelBooking(id: string, userId: string) {
+    // Get booking with service and user details
     const booking = await db.query.bookings.findFirst({
       where: and(eq(bookings.id, id), eq(bookings.userId, userId)),
+      with: {
+        service: {
+          with: {
+            user: true,
+          },
+        },
+      },
     });
 
     if (!booking) {
@@ -248,11 +282,57 @@ export class BookingsService {
       );
     }
 
+    // Process refund if payment was made
+    let refundAmount = 0;
+    if (booking.depositStatus === 'paid' && booking.stripePaymentIntentId) {
+      try {
+        const refund = await createRefund(booking.stripePaymentIntentId);
+        refundAmount = refund.amount;
+        console.log(`✅ Refund processed: ${refund.id} for booking ${id}`);
+      } catch (error) {
+        console.error('Failed to process refund:', error);
+        // Continue with cancellation even if refund fails
+        // Admin will need to handle refund manually
+      }
+    }
+
+    // Update booking status
     const [updated] = await db
       .update(bookings)
-      .set({ status: 'cancelled', updatedAt: new Date() })
+      .set({
+        status: 'cancelled',
+        depositStatus: refundAmount > 0 ? 'refunded' : booking.depositStatus,
+        updatedAt: new Date(),
+      })
       .where(eq(bookings.id, id))
       .returning();
+
+    // Send cancellation emails to both customer and tradie
+    if (booking.service && booking.service.user) {
+      const queueService = createQueueService();
+      await queueService.publishBookingCancellation(
+        booking.id,
+        booking.customerEmail,
+        booking.service.user.email,
+        {
+          serviceName: booking.service.name,
+          duration: booking.service.duration,
+          price: booking.depositAmount,
+          customerName: booking.customerName,
+          tradieName: booking.service.user.name,
+          bookingDate: booking.bookingDate,
+          refundAmount: refundAmount > 0 ? refundAmount : undefined,
+        }
+      );
+    }
+
+    // Cancel scheduled reminder
+    try {
+      await cancelBookingReminder(booking.id);
+    } catch (error) {
+      console.error(`❌ Failed to cancel reminder for booking ${booking.id}:`, error);
+      // Don't fail the cancellation if reminder cancellation fails
+    }
 
     return updated;
   }
@@ -293,6 +373,30 @@ export class BookingsService {
           price: booking.depositAmount,
         }
       );
+
+      // Schedule booking reminder for 24 hours before
+      try {
+        const bookingDate = new Date(booking.bookingDate);
+        const reminderDate = new Date(bookingDate.getTime() - 24 * 60 * 60 * 1000); // 24 hours before
+
+        // Only schedule if reminder date is in the future
+        if (reminderDate.getTime() > Date.now()) {
+          await scheduleBookingReminder(
+            booking.id,
+            booking.customerEmail,
+            booking.customerName,
+            booking.service.name,
+            bookingDate,
+            reminderDate
+          );
+          console.log(`📅 Reminder scheduled for booking ${booking.id}`);
+        } else {
+          console.log(`⚠️  Booking ${booking.id} is less than 24 hours away, skipping reminder`);
+        }
+      } catch (error) {
+        console.error(`❌ Failed to schedule reminder for booking ${booking.id}:`, error);
+        // Don't fail the payment confirmation if reminder scheduling fails
+      }
     }
 
     return updated;
@@ -301,14 +405,47 @@ export class BookingsService {
   /**
    * Handle failed payment
    */
-  async handleFailedPayment(paymentIntentId: string) {
-    await db
+  async handleFailedPayment(paymentIntentId: string, failureReason?: string) {
+    // Get booking with service details
+    const booking = await db.query.bookings.findFirst({
+      where: eq(bookings.stripePaymentIntentId, paymentIntentId),
+      with: {
+        service: true,
+      },
+    });
+
+    if (!booking) {
+      console.error(`Booking not found for payment intent: ${paymentIntentId}`);
+      throw new AppError(404, 'Booking not found for payment intent');
+    }
+
+    // Update booking status
+    const [updated] = await db
       .update(bookings)
       .set({
         status: 'cancelled',
         depositStatus: 'failed',
         updatedAt: new Date(),
       })
-      .where(eq(bookings.stripePaymentIntentId, paymentIntentId));
+      .where(eq(bookings.id, booking.id))
+      .returning();
+
+    // Send payment failure email to customer
+    if (booking.service) {
+      const queueService = createQueueService();
+      await queueService.publishPaymentFailure(
+        booking.id,
+        booking.customerEmail,
+        {
+          serviceName: booking.service.name,
+          customerName: booking.customerName,
+          bookingDate: booking.bookingDate,
+          amount: booking.depositAmount,
+          failureReason,
+        }
+      );
+    }
+
+    return updated;
   }
 }

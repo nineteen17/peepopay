@@ -51,3 +51,7 @@ docker-compose.override.yml
 .vercel
 .turbo
 *.tsbuildinfo
+
+# Compiled email templates (React Email)
+packages/api/src/emails/*.js
+packages/api/src/emails/*.js.map

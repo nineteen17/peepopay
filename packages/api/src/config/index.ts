@@ -7,6 +7,7 @@ export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.API_PORT || '4000'),
   apiUrl: process.env.API_URL || 'http://localhost:4000',
+  dashboardUrl: process.env.DASHBOARD_URL || 'http://localhost:3000',
 
   // Database
   databaseUrl: process.env.DATABASE_URL!,

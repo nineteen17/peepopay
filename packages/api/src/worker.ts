@@ -1,17 +1,24 @@
 import dotenv from 'dotenv';
 import { initRedis, closeRedis } from './lib/redis.js';
 import { initRabbitMQ, closeRabbitMQ, consumeQueue, QUEUES } from './lib/queue.js';
+import { initBull, closeBull, processBookingReminders, processOnboardingReminders } from './lib/bull.js';
 import { Resend } from 'resend';
 import { render } from '@react-email/render';
 import { config } from './config/index.js';
 import {
   BookingConfirmationEmail,
+  BookingCancellationEmail,
+  BookingCompletedEmail,
+  BookingReminderEmail,
+  OnboardingReminderEmail,
+  PaymentFailedEmail,
   GenericNotificationEmail,
   WelcomeEmail,
   VerifyEmail,
   PasswordResetEmail,
   PasswordChangedEmail,
 } from './emails/index.js';
+import type { Job } from 'bull';
 
 dotenv.config();
 
@@ -88,6 +95,276 @@ async function handleBookingConfirmation(message: any) {
   } catch (error) {
     console.error(`❌ Failed to send booking confirmation for ${bookingId}:`, error);
     throw error; // Will be retried or sent to dead letter queue
+  }
+}
+
+// Booking cancellation handler
+async function handleBookingCancellation(message: any) {
+  const { bookingId, customerEmail, tradieEmail, details } = message;
+
+  console.log(`❌ Processing booking cancellation for ${bookingId}`);
+
+  try {
+    const bookingDate = details.bookingDate
+      ? new Date(details.bookingDate).toLocaleString()
+      : undefined;
+
+    // Send cancellation email to customer
+    const customerHtml = render(
+      BookingCancellationEmail({
+        bookingId,
+        serviceName: details.serviceName,
+        duration: details.duration,
+        price: details.price,
+        recipientEmail: customerEmail,
+        recipientName: details.customerName,
+        bookingDate,
+        recipientType: 'customer',
+        refundAmount: details.refundAmount,
+        refundTimeframe: '5-10 business days',
+      })
+    );
+
+    const customerResult = await resend.emails.send({
+      from: `${config.email.fromName} <${config.email.fromEmail}>`,
+      to: customerEmail,
+      subject: `Booking Cancelled - ${details.serviceName}`,
+      html: customerHtml,
+    });
+
+    if (customerResult.error) {
+      throw new Error(`Customer email: ${customerResult.error.message}`);
+    }
+
+    console.log(`✅ Customer cancellation email sent (ID: ${customerResult.data?.id})`);
+
+    // Send cancellation email to tradie
+    const tradieHtml = render(
+      BookingCancellationEmail({
+        bookingId,
+        serviceName: details.serviceName,
+        duration: details.duration,
+        price: details.price,
+        recipientEmail: tradieEmail,
+        recipientName: details.tradieName,
+        bookingDate,
+        recipientType: 'tradie',
+      })
+    );
+
+    const tradieResult = await resend.emails.send({
+      from: `${config.email.fromName} <${config.email.fromEmail}>`,
+      to: tradieEmail,
+      subject: `Booking Cancelled - ${details.serviceName}`,
+      html: tradieHtml,
+    });
+
+    if (tradieResult.error) {
+      throw new Error(`Tradie email: ${tradieResult.error.message}`);
+    }
+
+    console.log(`✅ Tradie cancellation email sent (ID: ${tradieResult.data?.id})`);
+    console.log(`✅ All cancellation emails sent for ${bookingId}`);
+  } catch (error) {
+    console.error(`❌ Failed to send booking cancellation for ${bookingId}:`, error);
+    throw error; // Will be retried or sent to dead letter queue
+  }
+}
+
+// Payment failure handler
+async function handlePaymentFailure(message: any) {
+  const { bookingId, customerEmail, details } = message;
+
+  console.log(`💳 Processing payment failure for ${bookingId}`);
+
+  try {
+    const bookingDate = details.bookingDate
+      ? new Date(details.bookingDate).toLocaleString()
+      : undefined;
+
+    // Render the payment failed email template
+    const html = render(
+      PaymentFailedEmail({
+        bookingId,
+        serviceName: details.serviceName,
+        customerName: details.customerName,
+        customerEmail,
+        bookingDate: bookingDate || 'N/A',
+        amount: details.amount,
+        failureReason: details.failureReason,
+      })
+    );
+
+    const result = await resend.emails.send({
+      from: `${config.email.fromName} <${config.email.fromEmail}>`,
+      to: customerEmail,
+      subject: `Payment Failed - ${details.serviceName}`,
+      html,
+    });
+
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+
+    console.log(`✅ Payment failure email sent for ${bookingId} (ID: ${result.data?.id})`);
+  } catch (error) {
+    console.error(`❌ Failed to send payment failure email for ${bookingId}:`, error);
+    throw error; // Will be retried or sent to dead letter queue
+  }
+}
+
+// Booking completion handler
+async function handleBookingCompletion(message: any) {
+  const { bookingId, customerEmail, tradieEmail, details } = message;
+
+  console.log(`✅ Processing booking completion for ${bookingId}`);
+
+  try {
+    const bookingDate = details.bookingDate
+      ? new Date(details.bookingDate).toLocaleString()
+      : undefined;
+
+    // Send completion email to customer
+    const customerHtml = render(
+      BookingCompletedEmail({
+        bookingId,
+        serviceName: details.serviceName,
+        duration: details.duration,
+        price: details.price,
+        recipientEmail: customerEmail,
+        recipientName: details.customerName,
+        bookingDate,
+        recipientType: 'customer',
+      })
+    );
+
+    const customerResult = await resend.emails.send({
+      from: `${config.email.fromName} <${config.email.fromEmail}>`,
+      to: customerEmail,
+      subject: `Service Completed - ${details.serviceName}`,
+      html: customerHtml,
+    });
+
+    if (customerResult.error) {
+      throw new Error(`Customer email: ${customerResult.error.message}`);
+    }
+
+    console.log(`✅ Customer completion email sent (ID: ${customerResult.data?.id})`);
+
+    // Send completion email to tradie
+    const tradieHtml = render(
+      BookingCompletedEmail({
+        bookingId,
+        serviceName: details.serviceName,
+        duration: details.duration,
+        price: details.price,
+        recipientEmail: tradieEmail,
+        recipientName: details.tradieName,
+        bookingDate,
+        recipientType: 'tradie',
+      })
+    );
+
+    const tradieResult = await resend.emails.send({
+      from: `${config.email.fromName} <${config.email.fromEmail}>`,
+      to: tradieEmail,
+      subject: `Booking Completed - ${details.serviceName}`,
+      html: tradieHtml,
+    });
+
+    if (tradieResult.error) {
+      throw new Error(`Tradie email: ${tradieResult.error.message}`);
+    }
+
+    console.log(`✅ Tradie completion email sent (ID: ${tradieResult.data?.id})`);
+    console.log(`✅ All completion emails sent for ${bookingId}`);
+  } catch (error) {
+    console.error(`❌ Failed to send booking completion emails for ${bookingId}:`, error);
+    throw error; // Will be retried or sent to dead letter queue
+  }
+}
+
+// Booking reminder handler (Bull queue processor)
+async function handleBookingReminder(job: Job) {
+  const { bookingId, customerEmail, customerName, serviceName, bookingDate, duration, price } = job.data;
+
+  console.log(`⏰ Processing booking reminder for ${bookingId}`);
+
+  try {
+    // Render the booking reminder email template
+    const html = render(
+      BookingReminderEmail({
+        bookingId,
+        customerName,
+        serviceName,
+        bookingDate,
+        duration,
+        price,
+      })
+    );
+
+    const result = await resend.emails.send({
+      from: `${config.email.fromName} <${config.email.fromEmail}>`,
+      to: customerEmail,
+      subject: `Reminder: Your booking for ${serviceName} is coming up soon`,
+      html,
+    });
+
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+
+    console.log(`✅ Reminder email sent for booking ${bookingId} (ID: ${result.data?.id})`);
+  } catch (error) {
+    console.error(`❌ Failed to send reminder email for booking ${bookingId}:`, error);
+    throw error; // Will be retried by Bull
+  }
+}
+
+// Onboarding reminder handler (Bull queue processor)
+async function handleOnboardingReminder(job: Job) {
+  const { userId, userName, userEmail, onboardingUrl, daysWaiting } = job.data;
+
+  console.log(`🔔 Processing onboarding reminder for user ${userId} (${daysWaiting} days)`);
+
+  try {
+    // Import UsersService to check onboarding status
+    const { UsersService } = await import('./modules/users/users.service.js');
+    const usersService = new UsersService();
+
+    // Check if user has already completed onboarding
+    const user = await usersService.getUserById(userId);
+
+    if (user.stripeOnboarded) {
+      console.log(`⏭️  Skipping onboarding reminder for user ${userId} - already onboarded`);
+      return; // User has already completed onboarding, no need to send reminder
+    }
+
+    // Render the onboarding reminder email template
+    const html = render(
+      OnboardingReminderEmail({
+        userName,
+        userEmail,
+        onboardingUrl,
+        daysWaiting,
+      })
+    );
+
+    const result = await resend.emails.send({
+      from: `${config.email.fromName} <${config.email.fromEmail}>`,
+      to: userEmail,
+      subject: `Complete Your PeepoPay Setup - Start Accepting Bookings Today`,
+      html,
+    });
+
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+
+    console.log(`✅ Onboarding reminder sent to ${userEmail} (${daysWaiting} days, ID: ${result.data?.id})`);
+  } catch (error) {
+    console.error(`❌ Failed to send onboarding reminder to ${userEmail}:`, error);
+    throw error; // Will be retried by Bull
   }
 }
 
@@ -220,15 +497,23 @@ async function startWorker() {
     // Initialize services
     await initRedis();
     await initRabbitMQ();
+    await initBull();
 
     console.log('✅ Worker services initialized');
 
-    // Start consuming queues
+    // Start consuming RabbitMQ queues
     await consumeQueue(QUEUES.EMAIL_NOTIFICATIONS, handleEmailNotification, { prefetch: 5 });
     await consumeQueue(QUEUES.BOOKING_CONFIRMATIONS, handleBookingConfirmation, { prefetch: 3 });
+    await consumeQueue(QUEUES.BOOKING_CANCELLATIONS, handleBookingCancellation, { prefetch: 3 });
+    await consumeQueue(QUEUES.BOOKING_COMPLETIONS, handleBookingCompletion, { prefetch: 3 });
+    await consumeQueue(QUEUES.PAYMENT_FAILURES, handlePaymentFailure, { prefetch: 5 });
     await consumeQueue(QUEUES.AUTH_EMAILS, handleAuthEmail, { prefetch: 5 });
     await consumeQueue(QUEUES.STRIPE_WEBHOOKS, handleStripeWebhook, { prefetch: 10 });
     await consumeQueue(QUEUES.FAILED_JOBS, handleFailedJob, { prefetch: 1 });
+
+    // Start processing Bull queues
+    await processBookingReminders(handleBookingReminder);
+    await processOnboardingReminders(handleOnboardingReminder);
 
     console.log('✅ Worker is ready and listening for jobs...');
   } catch (error) {

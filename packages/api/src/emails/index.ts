@@ -1,4 +1,9 @@
 export { BookingConfirmationEmail } from './booking-confirmation.js';
+export { BookingCancellationEmail } from './booking-cancellation.js';
+export { BookingCompletedEmail } from './booking-completed.js';
+export { BookingReminderEmail } from './booking-reminder.js';
+export { OnboardingReminderEmail } from './onboarding-reminder.js';
+export { PaymentFailedEmail } from './payment-failed.js';
 export { GenericNotificationEmail } from './generic-notification.js';
 export { WelcomeEmail } from './welcome-email.js';
 export { VerifyEmail } from './verify-email.js';
