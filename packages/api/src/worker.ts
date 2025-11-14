@@ -100,7 +100,7 @@ async function handleBookingConfirmation(message: any) {
 
 // Booking cancellation handler
 async function handleBookingCancellation(message: any) {
-  const { bookingId, customerEmail, tradieEmail, details } = message;
+  const { bookingId, customerEmail, providerEmail, details } = message;
 
   console.log(`❌ Processing booking cancellation for ${bookingId}`);
 
@@ -138,32 +138,32 @@ async function handleBookingCancellation(message: any) {
 
     console.log(`✅ Customer cancellation email sent (ID: ${customerResult.data?.id})`);
 
-    // Send cancellation email to tradie
-    const tradieHtml = render(
+    // Send cancellation email to provider
+    const providerHtml = render(
       BookingCancellationEmail({
         bookingId,
         serviceName: details.serviceName,
         duration: details.duration,
         price: details.price,
-        recipientEmail: tradieEmail,
-        recipientName: details.tradieName,
+        recipientEmail: providerEmail,
+        recipientName: details.providerName,
         bookingDate,
-        recipientType: 'tradie',
+        recipientType: 'provider',
       })
     );
 
-    const tradieResult = await resend.emails.send({
+    const providerResult = await resend.emails.send({
       from: `${config.email.fromName} <${config.email.fromEmail}>`,
-      to: tradieEmail,
+      to: providerEmail,
       subject: `Booking Cancelled - ${details.serviceName}`,
-      html: tradieHtml,
+      html: providerHtml,
     });
 
-    if (tradieResult.error) {
-      throw new Error(`Tradie email: ${tradieResult.error.message}`);
+    if (providerResult.error) {
+      throw new Error(`Provider email: ${providerResult.error.message}`);
     }
 
-    console.log(`✅ Tradie cancellation email sent (ID: ${tradieResult.data?.id})`);
+    console.log(`✅ Provider cancellation email sent (ID: ${providerResult.data?.id})`);
     console.log(`✅ All cancellation emails sent for ${bookingId}`);
   } catch (error) {
     console.error(`❌ Failed to send booking cancellation for ${bookingId}:`, error);
@@ -215,7 +215,7 @@ async function handlePaymentFailure(message: any) {
 
 // Booking completion handler
 async function handleBookingCompletion(message: any) {
-  const { bookingId, customerEmail, tradieEmail, details } = message;
+  const { bookingId, customerEmail, providerEmail, details } = message;
 
   console.log(`✅ Processing booking completion for ${bookingId}`);
 
@@ -251,32 +251,32 @@ async function handleBookingCompletion(message: any) {
 
     console.log(`✅ Customer completion email sent (ID: ${customerResult.data?.id})`);
 
-    // Send completion email to tradie
-    const tradieHtml = render(
+    // Send completion email to provider
+    const providerHtml = render(
       BookingCompletedEmail({
         bookingId,
         serviceName: details.serviceName,
         duration: details.duration,
         price: details.price,
-        recipientEmail: tradieEmail,
-        recipientName: details.tradieName,
+        recipientEmail: providerEmail,
+        recipientName: details.providerName,
         bookingDate,
-        recipientType: 'tradie',
+        recipientType: 'provider',
       })
     );
 
-    const tradieResult = await resend.emails.send({
+    const providerResult = await resend.emails.send({
       from: `${config.email.fromName} <${config.email.fromEmail}>`,
-      to: tradieEmail,
+      to: providerEmail,
       subject: `Booking Completed - ${details.serviceName}`,
-      html: tradieHtml,
+      html: providerHtml,
     });
 
-    if (tradieResult.error) {
-      throw new Error(`Tradie email: ${tradieResult.error.message}`);
+    if (providerResult.error) {
+      throw new Error(`Provider email: ${providerResult.error.message}`);
     }
 
-    console.log(`✅ Tradie completion email sent (ID: ${tradieResult.data?.id})`);
+    console.log(`✅ Provider completion email sent (ID: ${providerResult.data?.id})`);
     console.log(`✅ All completion emails sent for ${bookingId}`);
   } catch (error) {
     console.error(`❌ Failed to send booking completion emails for ${bookingId}:`, error);

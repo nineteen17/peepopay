@@ -152,13 +152,13 @@ export class QueueService {
   async publishBookingCancellation(
     bookingId: string,
     customerEmail: string,
-    tradieEmail: string,
+    providerEmail: string,
     details: {
       serviceName: string;
       duration: number;
       price: number;
       customerName: string;
-      tradieName: string;
+      providerName: string;
       bookingDate: Date;
       refundAmount?: number;
     }
@@ -166,7 +166,7 @@ export class QueueService {
     await this.publish(QUEUES.BOOKING_CANCELLATIONS, {
       bookingId,
       customerEmail,
-      tradieEmail,
+      providerEmail,
       details,
       createdAt: new Date().toISOString(),
     });
@@ -216,20 +216,20 @@ export class QueueService {
   async publishBookingCompletion(
     bookingId: string,
     customerEmail: string,
-    tradieEmail: string,
+    providerEmail: string,
     details: {
       serviceName: string;
       duration: number;
       price: number;
       customerName: string;
-      tradieName: string;
+      providerName: string;
       bookingDate: Date;
     }
   ): Promise<void> {
     await this.publish(QUEUES.BOOKING_COMPLETIONS, {
       bookingId,
       customerEmail,
-      tradieEmail,
+      providerEmail,
       details,
       createdAt: new Date().toISOString(),
     });

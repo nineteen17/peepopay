@@ -7,7 +7,7 @@ export const stripe = new Stripe(config.stripe.secretKey, {
 });
 
 /**
- * Create a Stripe Connect account for a tradie
+ * Create a Stripe Connect account for a provider
  */
 export async function createConnectAccount(params: {
   email: string;

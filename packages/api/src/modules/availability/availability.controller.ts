@@ -44,7 +44,7 @@ router.get('/:slug', async (req, res, next): Promise<void> => {
   }
 });
 
-// Protected endpoints - Tradie manages their availability
+// Protected endpoints - Provider manages their availability
 
 // Get my availability rules
 router.get('/', requireAuth, async (req: AuthRequest, res, next) => {

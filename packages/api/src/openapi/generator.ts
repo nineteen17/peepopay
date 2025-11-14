@@ -785,7 +785,7 @@ const openApiDocument = generator.generateDocument({
   info: {
     version: '1.0.0',
     title: 'PeepoPay API',
-    description: 'Production-grade booking and payment platform for tradies',
+    description: 'Production-grade booking and payment infrastructure for service businesses',
     contact: {
       name: 'API Support',
       email: 'support@peepopay.com',

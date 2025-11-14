@@ -135,7 +135,7 @@ export class BookingsService {
 
     // Use transaction to ensure data consistency
     return await db.transaction(async (tx) => {
-      // 1. Get service to verify and get tradie's Stripe account
+      // 1. Get service to verify and get provider's Stripe account
       const service = await tx.query.services.findFirst({
         where: eq(services.id, validatedData.serviceId),
         with: {
@@ -148,7 +148,7 @@ export class BookingsService {
       }
 
       if (!service.user.stripeAccountId) {
-        throw new AppError(400, 'Tradie has not set up payments yet');
+        throw new AppError(400, 'Provider has not set up payments yet');
       }
 
       // 2. Check for booking conflicts
@@ -229,7 +229,7 @@ export class BookingsService {
       .where(eq(bookings.id, id))
       .returning();
 
-    // Send completion emails to both customer and tradie when status is completed
+    // Send completion emails to both customer and provider when status is completed
     if (status === 'completed' && existing.service && existing.service.user) {
       const queueService = createQueueService();
       await queueService.publishBookingCompletion(
@@ -241,7 +241,7 @@ export class BookingsService {
           duration: existing.service.duration,
           price: existing.depositAmount,
           customerName: existing.customerName,
-          tradieName: existing.service.user.name,
+          providerName: existing.service.user.name,
           bookingDate: existing.bookingDate,
         }
       );
@@ -307,7 +307,7 @@ export class BookingsService {
       .where(eq(bookings.id, id))
       .returning();
 
-    // Send cancellation emails to both customer and tradie
+    // Send cancellation emails to both customer and provider
     if (booking.service && booking.service.user) {
       const queueService = createQueueService();
       await queueService.publishBookingCancellation(
@@ -319,7 +319,7 @@ export class BookingsService {
           duration: booking.service.duration,
           price: booking.depositAmount,
           customerName: booking.customerName,
-          tradieName: booking.service.user.name,
+          providerName: booking.service.user.name,
           bookingDate: booking.bookingDate,
           refundAmount: refundAmount > 0 ? refundAmount : undefined,
         }
