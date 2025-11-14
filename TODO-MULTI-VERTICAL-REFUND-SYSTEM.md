@@ -10,62 +10,67 @@
 
 ---
 
-## Phase 1: Terminology & Code Cleanup (Week 1)
+## Phase 1: Terminology & Code Cleanup (Week 1) ✅ COMPLETED
 
 ### 1.1 Documentation Updates
 
-- [ ] **README.md**
-  - [ ] Change "Production-grade booking and payment platform for tradies" to "Production-grade booking and payment infrastructure for service businesses"
-  - [ ] Add multi-vertical examples (dentists, lawyers, mechanics, salons, tradies)
-  - [ ] Update feature list: "provider" instead of "tradie"
-  - [ ] Update architecture diagram comments
+- [x] **README.md**
+  - [x] Change "Production-grade booking and payment platform for tradies" to "Production-grade booking and payment infrastructure for service businesses"
+  - [x] Add multi-vertical examples (dentists, lawyers, mechanics, salons, tradies)
+  - [x] Update feature list: "provider" instead of "tradie"
+  - [x] Update architecture diagram comments
 
-- [ ] **Docs/architecture/*.md**
-  - [ ] Find/replace "tradie" → "provider" across all architecture docs
-  - [ ] Update "Tradie Dashboard" → "Business Dashboard"
-  - [ ] Update example scenarios to show multiple industries
+- [x] **Docs/architecture/*.md**
+  - [x] Find/replace "tradie" → "provider" across all architecture docs
+  - [x] Update "Tradie Dashboard" → "Business Dashboard"
+  - [x] Update example scenarios to show multiple industries
 
-- [ ] **Docs/refund-policy.md**
+- [ ] **Docs/refund-policy.md** (Deferred to Phase 10 - Protection Addons)
   - [ ] Replace "Bad Weather Protection" section with "Industry-Specific Protection Addons"
   - [ ] Add examples across verticals: Sick Day (medical), Court Delay (legal), Parts Delay (automotive)
   - [ ] Add table comparing policy needs across industries
 
 ### 1.2 Code Comments & Variable Names
 
-- [ ] **packages/api/src/modules/users/**
-  - [ ] Review comments, update tradie → provider where appropriate
-  - [ ] Variable names already generic (no changes needed)
+- [x] **packages/api/src/modules/users/**
+  - [x] Review comments, update tradie → provider where appropriate
+  - [x] Variable names already generic (no changes needed)
 
-- [ ] **packages/api/src/modules/services/**
-  - [ ] Update comments to be industry-neutral
+- [x] **packages/api/src/modules/services/**
+  - [x] Update comments to be industry-neutral
 
-- [ ] **packages/api/src/modules/bookings/**
-  - [ ] Update comments: "tradie" → "provider" or "service provider"
-  - [ ] Update log messages to be generic
+- [x] **packages/api/src/modules/bookings/**
+  - [x] Update comments: "tradie" → "provider" or "service provider"
+  - [x] Update log messages to be generic
 
-- [ ] **packages/dashboard/**
-  - [ ] Update UI text strings to be generic
-  - [ ] Change "Tradie Dashboard" → "Business Dashboard" in titles
-  - [ ] Review tooltips and help text
+- [x] **packages/dashboard/**
+  - [x] Update UI text strings to be generic
+  - [x] Change "Tradie Dashboard" → "Business Dashboard" in titles
+  - [x] Review tooltips and help text
 
-- [ ] **packages/widget/**
-  - [ ] Ensure all text is completely generic (no industry-specific terms)
+- [x] **packages/widget/**
+  - [x] Ensure all text is completely generic (no industry-specific terms)
 
 ### 1.3 Email Templates
 
-- [ ] **packages/api/src/emails/**
-  - [ ] Review all templates for tradie-specific language
-  - [ ] Update to generic "provider" or "business" terminology
-  - [ ] Ensure templates work for any industry
+- [x] **packages/api/src/emails/**
+  - [x] Review all templates for tradie-specific language
+  - [x] Update to generic "provider" or "business" terminology
+  - [x] Ensure templates work for any industry
 
 ### 1.4 API Response Messages
 
-- [ ] **Error messages**
-  - [ ] "Tradie has not set up payments" → "Provider has not set up payments"
-  - [ ] Review all AppError messages for generic wording
+- [x] **Error messages**
+  - [x] "Tradie has not set up payments" → "Provider has not set up payments"
+  - [x] Review all AppError messages for generic wording
 
-- [ ] **Console logs**
-  - [ ] Update log messages using "tradie" to "provider"
+- [x] **Console logs**
+  - [x] Update log messages using "tradie" to "provider"
+
+**Git Commits:**
+- feat(docs,emails): Update terminology from tradie-specific to multi-vertical
+- feat(api): Update terminology from tradie-specific to multi-vertical
+- feat(dashboard): Update terminology from tradie-specific to multi-vertical
 
 ---
 
