@@ -29,6 +29,7 @@ RUN npm install --omit=dev --legacy-peer-deps
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/drizzle ./drizzle
+COPY --from=builder /app/openapi.json ./openapi.json
 
 # Expose port
 EXPOSE 4000
