@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, uuid, integer } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, uuid, integer, jsonb } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
@@ -25,6 +25,23 @@ export const services = pgTable('services', {
   // Settings
   isActive: boolean('is_active').default(true),
   requiresApproval: boolean('requires_approval').default(false),
+
+  // Refund Policy Settings
+  cancellationWindowHours: integer('cancellation_window_hours').default(24), // Hours before booking to cancel for full refund
+  lateCancellationFee: integer('late_cancellation_fee'), // Fee in cents for late cancellations
+  noShowFee: integer('no_show_fee'), // Fee in cents for no-shows
+  allowPartialRefunds: boolean('allow_partial_refunds').default(true), // Allow partial refunds based on timing
+  autoRefundOnCancel: boolean('auto_refund_on_cancel').default(true), // Automatically process refunds
+  minimumCancellationHours: integer('minimum_cancellation_hours').default(2), // Minimum hours before booking to cancel
+
+  // Flex Pass (Cancellation Protection)
+  flexPassEnabled: boolean('flex_pass_enabled').default(false), // Enable cancellation protection add-on
+  flexPassPrice: integer('flex_pass_price'), // Price in cents for flex pass
+  flexPassRevenueSharePercent: integer('flex_pass_revenue_share_percent').default(60), // Platform's share of flex pass fee (60-70%)
+  flexPassRulesJson: jsonb('flex_pass_rules_json'), // Custom flex pass rules/conditions
+
+  // Protection Addons
+  protectionAddons: jsonb('protection_addons'), // Industry-specific protection addons (e.g., bad weather, sick day)
 
   // Timestamps
   createdAt: timestamp('created_at').defaultNow().notNull(),

@@ -1,6 +1,9 @@
-import { pgTable, text, timestamp, boolean, uuid } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, uuid, jsonb } from 'drizzle-orm/pg-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
+
+export const industryVerticalEnum = ['general', 'trade', 'medical', 'legal', 'automotive', 'beauty', 'consulting'] as const;
+export const verticalTierEnum = ['core', 'vertical', 'white_label'] as const;
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -23,6 +26,12 @@ export const users = pgTable('users', {
   avatar: text('avatar'),
   timezone: text('timezone').default('Australia/Sydney'),
 
+  // Industry & Vertical
+  industryVertical: text('industry_vertical', { enum: industryVerticalEnum }).default('general'), // Business industry type
+  industrySubcategory: text('industry_subcategory'), // Specific subcategory (e.g., 'plumber', 'dentist', 'lawyer')
+  verticalTier: text('vertical_tier', { enum: verticalTierEnum }).default('core'), // Pricing tier based on features
+  enabledFeatures: jsonb('enabled_features'), // Feature flags for vertical-specific functionality
+
   // Status
   isActive: boolean('is_active').default(true),
 
@@ -42,3 +51,5 @@ export const selectUserSchema = createSelectSchema(users);
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+export type IndustryVertical = typeof industryVerticalEnum[number];
+export type VerticalTier = typeof verticalTierEnum[number];

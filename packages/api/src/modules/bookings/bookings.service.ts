@@ -17,10 +17,11 @@ export interface BookingFilters {
  */
 const VALID_STATUS_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
   pending: ['confirmed', 'cancelled'],
-  confirmed: ['completed', 'cancelled'],
+  confirmed: ['completed', 'cancelled', 'no_show'],
   cancelled: [], // Terminal state
   completed: ['refunded'],
   refunded: [], // Terminal state
+  no_show: ['refunded'], // Can be refunded if disputed
 };
 
 /**

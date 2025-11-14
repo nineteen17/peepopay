@@ -1,10 +1,10 @@
 {
   "checksum": "d0ef8f17c47771c612124155a4863834",
-  "timestamp": "2025-11-14T01:57:52.944Z",
+  "timestamp": "2025-11-14T13:16:24.765Z",
   "files": {
-    "source": "/app/openapi.json",
-    "generated": "/app/.generated/api-types.ts",
-    "dashboard": "/packages/dashboard/src/types/api.ts",
-    "widget": "/packages/widget/src/types/api.ts"
+    "source": "/Users/nickririnui/Desktop/PeepoPay/packages/api/openapi.json",
+    "generated": "/Users/nickririnui/Desktop/PeepoPay/packages/api/.generated/api-types.ts",
+    "dashboard": "/Users/nickririnui/Desktop/PeepoPay/packages/dashboard/src/types/api.ts",
+    "widget": "/Users/nickririnui/Desktop/PeepoPay/packages/widget/src/types/api.ts"
   }
 }
