@@ -1,6 +1,6 @@
 # Refund Policy System
 
-> **Implementation Status**: Phase 3 Complete (Policy Snapshot System)
+> **Implementation Status**: Phase 4 Complete (Refund Calculation Engine)
 >
 > **Last Updated**: 2025-11-15
 
@@ -11,10 +11,11 @@ The PeepoPay refund policy system provides flexible, fair, and automated refund 
 ## Key Features
 
 - ✅ **Policy Snapshots** - Immutable policy records at booking time (Phase 3)
-- ⏳ **Flexible Cancellation Windows** - Customizable time-based refund rules (Phase 4)
-- ⏳ **Late Cancellation Fees** - Configurable penalties for cancellations outside window (Phase 4)
+- ✅ **Flexible Cancellation Windows** - Customizable time-based refund rules (Phase 4)
+- ✅ **Late Cancellation Fees** - Configurable penalties for cancellations outside window (Phase 4)
+- ✅ **Refund Calculation Engine** - Automated refund calculations with timezone support (Phase 4)
+- ✅ **Flex Pass Override** - Optional cancellation protection for full refunds (Phase 4)
 - ⏳ **No-Show Detection** - Automatic detection and fee charging (Phase 5)
-- ⏳ **Flex Pass** - Optional cancellation protection for customers (Phase 6)
 - ⏳ **Dispute Resolution** - Built-in dispute handling workflow (Phase 7)
 - ⏳ **Industry Defaults** - Pre-configured policies for different verticals (Phase 9)
 
@@ -106,34 +107,57 @@ const refund = calculateRefund(policy, booking, cancellationTime);
 | `hasValidPolicySnapshot(booking)` | Check if booking has valid snapshot | `boolean` |
 | `getPolicySummary(snapshot)` | Human-readable policy description | `string` |
 
-### 2. Refund Calculation Engine (Phase 4 - Coming Soon)
+### 2. Refund Calculation Engine (Phase 4 ✅)
 
-The refund calculator will use the policy snapshot to determine:
+The refund calculator uses the policy snapshot to determine:
 - Refund amount based on cancellation timing
 - Any fees to charge (late cancellation, no-show)
-- Flex pass overrides
-- Protection addon rules
+- Flex pass overrides (full refund regardless of timing)
+- Already-refunded detection
+- Timezone-aware calculations
 
-**Planned Interface**:
+**Implementation**: `packages/api/src/lib/refundCalculator.ts`
 
 ```typescript
 interface RefundResult {
-  refundAmount: number; // in cents
-  feeCharged: number; // in cents
-  reason: string; // 'within_window' | 'late_cancellation' | 'flex_pass' | 'no_refund'
+  refundAmount: number; // Amount to refund in cents
+  feeCharged: number; // Fee charged to customer in cents
+  reason: RefundReason; // Machine-readable reason code
   explanation: string; // Human-readable explanation
+  calculatedAt: Date; // When calculation was performed
+  hoursUntilBooking: number; // Hours from cancellation to booking
+  policyUsed: 'snapshot' | 'current_service' | 'none'; // Which policy was used
 }
 
+type RefundReason =
+  | 'within_window' // Cancelled within free cancellation window
+  | 'late_cancellation' // Cancelled outside window, partial refund
+  | 'flex_pass_protection' // Flex pass purchased, full refund
+  | 'no_refund_too_late' // Too close to booking time, no refund
+  | 'no_refund_policy' // Service doesn't allow refunds
+  | 'no_show' // Customer didn't show up
+  | 'already_refunded'; // Already refunded
+
 // Usage
-const result = calculateRefundAmount(booking, cancellationTime);
+const result = calculateRefundAmount(booking, cancellationTime, 'America/New_York');
 console.log(result);
 // {
 //   refundAmount: 5000, // $50.00
 //   feeCharged: 0,
 //   reason: 'within_window',
-//   explanation: 'Cancelled within 24-hour free cancellation window'
+//   explanation: 'Cancelled 48.0 hours before booking. Free cancellation window: 24 hours',
+//   calculatedAt: 2024-01-20T15:30:00.000Z,
+//   hoursUntilBooking: 48.0,
+//   policyUsed: 'snapshot'
 // }
 ```
+
+**Available Functions**:
+- `calculateRefundAmount(booking, cancellationTime, timezone)` - Main calculation
+- `calculateNoShowFee(booking)` - Extract no-show fee from policy
+- `calculateFlexPassSplit(flexPassPrice, platformPercent)` - Revenue distribution
+- `validateRefundAmount(refundAmount, depositAmount)` - Safety validation
+- `getRefundPolicySummary(policy)` - Human-readable policy description
 
 ### 3. Cancellation Windows
 
@@ -329,22 +353,41 @@ if (booking.flexPassPurchased) {
 
 ## Testing
 
-Comprehensive test coverage ensures policy snapshot integrity:
+Comprehensive test coverage ensures system integrity:
 
+### Policy Snapshot Tests
 **Test File**: `packages/api/src/lib/policySnapshot.test.ts`
 
-**Coverage**:
-- ✅ Snapshot creation with various configurations (21 tests)
+**Coverage** (21 tests ✅):
+- ✅ Snapshot creation with various configurations
 - ✅ Default value handling
 - ✅ Validation and error handling
 - ✅ Policy immutability guarantees
 - ✅ Edge cases (percentage deposits, complex addons)
 
+### Refund Calculator Tests
+**Test File**: `packages/api/src/lib/refundCalculator.test.ts`
+
+**Coverage** (34 tests ✅):
+- ✅ Full refunds within cancellation window
+- ✅ Partial refunds with late cancellation fees
+- ✅ No refunds for last-minute cancellations
+- ✅ Flex pass override scenarios
+- ✅ Already-refunded booking detection
+- ✅ No-show fee calculations
+- ✅ Flex pass revenue splits (60/40, 70/30)
+- ✅ Validation edge cases
+- ✅ Timezone handling
+- ✅ Real-world scenarios (plumber, dental, last-minute)
+
 **Run Tests**:
 ```bash
 cd packages/api
 npm test -- policySnapshot.test.ts
+npm test -- refundCalculator.test.ts
 ```
+
+**Total: 55 tests, 100% passing** ✅
 
 ## Critical Implementation Rules
 
@@ -388,7 +431,7 @@ const bookingInUserTz = formatInTimeZone(
 - [x] **Phase 1**: Terminology cleanup (Week 1) ✅
 - [x] **Phase 2**: Database schema - policy fields (Week 2) ✅
 - [x] **Phase 3**: Policy snapshot system (Week 3) ✅
-- [ ] **Phase 4**: Refund calculation engine (Week 3-4)
+- [x] **Phase 4**: Refund calculation engine (Week 3-4) ✅
 - [ ] **Phase 5**: No-show detection (Week 4)
 - [ ] **Phase 6**: Flex pass implementation (Week 5)
 - [ ] **Phase 7**: Dispute handling (Week 5)
@@ -415,5 +458,5 @@ For questions or issues with the refund policy system:
 ---
 
 **Last Updated**: 2025-11-15
-**Status**: Phase 3 Complete
-**Next Phase**: Refund Calculation Engine (Phase 4)
+**Status**: Phase 4 Complete
+**Next Phase**: No-Show Detection System (Phase 5)
