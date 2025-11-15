@@ -334,6 +334,28 @@ export class BookingsService {
 
           stripeRefundId = refund.id;
           console.log(`✅ Refund processed: ${refund.id} for booking ${id} - Amount: $${(validatedAmount / 100).toFixed(2)}`);
+
+          // Send refund notification email to customer
+          if (booking.service) {
+            try {
+              const queueService = createQueueService();
+              await queueService.publishRefundNotification(
+                booking.id,
+                booking.customerEmail,
+                {
+                  serviceName: booking.service.name,
+                  bookingDate: booking.bookingDate,
+                  refundAmount: validatedAmount,
+                  cancellationReason: refundResult.explanation,
+                  customerName: booking.customerName,
+                }
+              );
+              console.log(`📧 Refund notification sent for booking ${id}`);
+            } catch (emailError) {
+              console.error(`❌ Failed to send refund notification email:`, emailError);
+              // Don't fail the refund if email fails
+            }
+          }
         } catch (error) {
           console.error('Failed to process refund:', error);
           // Continue with cancellation even if refund fails

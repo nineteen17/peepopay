@@ -9,6 +9,8 @@ export const QUEUES = {
   BOOKING_CONFIRMATIONS: 'booking_confirmations',
   BOOKING_CANCELLATIONS: 'booking_cancellations',
   BOOKING_COMPLETIONS: 'booking_completions',
+  NO_SHOW_NOTIFICATIONS: 'no_show_notifications',
+  REFUND_NOTIFICATIONS: 'refund_notifications',
   PAYMENT_FAILURES: 'payment_failures',
   STRIPE_WEBHOOKS: 'stripe_webhooks',
   AUTH_EMAILS: 'auth_emails', // Auth-related emails (welcome, verification, password reset)
@@ -167,6 +169,46 @@ export class QueueService {
       bookingId,
       customerEmail,
       providerEmail,
+      details,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  async publishNoShowNotification(
+    bookingId: string,
+    customerEmail: string,
+    providerEmail: string,
+    details: {
+      serviceName: string;
+      bookingDate: Date;
+      feeCharged: number;
+      customerName: string;
+      providerName: string;
+    }
+  ): Promise<void> {
+    await this.publish(QUEUES.NO_SHOW_NOTIFICATIONS, {
+      bookingId,
+      customerEmail,
+      providerEmail,
+      details,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  async publishRefundNotification(
+    bookingId: string,
+    customerEmail: string,
+    details: {
+      serviceName: string;
+      bookingDate: Date;
+      refundAmount: number;
+      cancellationReason: string;
+      customerName: string;
+    }
+  ): Promise<void> {
+    await this.publish(QUEUES.REFUND_NOTIFICATIONS, {
+      bookingId,
+      customerEmail,
       details,
       createdAt: new Date().toISOString(),
     });

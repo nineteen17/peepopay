@@ -123,20 +123,16 @@ export async function markAsNoShow(
     try {
       const queueService = createQueueService();
 
-      // TODO: Create dedicated no-show notification email
-      // For now, we'll use the cancellation email with no-show context
-      await queueService.publishBookingCancellation(
+      await queueService.publishNoShowNotification(
         booking.id,
         booking.customerEmail,
         booking.service.user.email,
         {
           serviceName: booking.service.name,
-          duration: booking.service.duration,
-          price: booking.depositAmount,
+          bookingDate: booking.bookingDate,
+          feeCharged: noShowFee,
           customerName: booking.customerName,
           providerName: booking.service.user.name,
-          bookingDate: booking.bookingDate,
-          refundAmount: 0, // No refund for no-shows
         }
       );
 

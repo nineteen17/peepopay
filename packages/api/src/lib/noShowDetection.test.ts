@@ -39,7 +39,7 @@ vi.mock('../db/index.js', () => ({
 
 vi.mock('./queue.js', () => ({
   createQueueService: vi.fn(() => ({
-    publishBookingCancellation: vi.fn(),
+    publishNoShowNotification: vi.fn(),
   })),
 }));
 
@@ -284,7 +284,7 @@ describe('No-Show Detection Module', () => {
 
       const mockPublish = vi.fn();
       vi.mocked(createQueueService).mockReturnValueOnce({
-        publishBookingCancellation: mockPublish,
+        publishNoShowNotification: mockPublish,
       } as any);
 
       await markAsNoShow(mockBooking.id);
@@ -295,7 +295,7 @@ describe('No-Show Detection Module', () => {
         mockBooking.service.user.email,
         expect.objectContaining({
           serviceName: 'Test Service',
-          refundAmount: 0, // No refund for no-shows
+          feeCharged: 5000, // No-show fee from policy snapshot
         })
       );
     });
