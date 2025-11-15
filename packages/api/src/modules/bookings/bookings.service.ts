@@ -7,6 +7,7 @@ import { createQueueService } from '../../lib/queue.js';
 import { scheduleBookingReminder, cancelBookingReminder } from '../../lib/bull.js';
 import { createPolicySnapshot } from '../../lib/policySnapshot.js';
 import { calculateRefundAmount, validateRefundAmount } from '../../lib/refundCalculator.js';
+import { markAsNoShow } from '../../lib/noShowDetection.js';
 
 export interface BookingFilters {
   status?: string;
@@ -387,6 +388,41 @@ export class BookingsService {
     }
 
     return updated;
+  }
+
+  /**
+   * Mark a booking as no-show (provider only)
+   * Validates that the user is the service provider for the booking
+   */
+  async markBookingAsNoShow(bookingId: string, userId: string) {
+    // Get booking with service details to verify ownership
+    const booking = await db.query.bookings.findFirst({
+      where: eq(bookings.id, bookingId),
+      with: {
+        service: {
+          with: {
+            user: true,
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new AppError(404, 'Booking not found');
+    }
+
+    // Verify the user is the service provider (not the customer)
+    if (booking.service.userId !== userId) {
+      throw new AppError(
+        403,
+        'Only the service provider can mark a booking as no-show'
+      );
+    }
+
+    // Call the no-show detection function with the provider's user ID
+    const updatedBooking = await markAsNoShow(bookingId, userId);
+
+    return updatedBooking;
   }
 
   /**

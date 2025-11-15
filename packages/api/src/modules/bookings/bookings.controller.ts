@@ -68,4 +68,14 @@ router.post('/:id/cancel', requireAuth, async (req: AuthRequest, res, next) => {
   }
 });
 
+// Mark booking as no-show (provider only)
+router.post('/:id/no-show', requireAuth, async (req: AuthRequest, res, next) => {
+  try {
+    const booking = await bookingsService.markBookingAsNoShow(req.params.id, req.user!.id);
+    res.json({ booking });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

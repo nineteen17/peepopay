@@ -4,6 +4,7 @@ import { config } from '../config/index.js';
 // Queue instances
 let bookingRemindersQueue: Queue | null = null;
 let onboardingRemindersQueue: Queue | null = null;
+let noShowDetectionQueue: Queue | null = null;
 
 /**
  * Initialize Bull queues with Redis connection
@@ -81,6 +82,33 @@ export async function initBull(): Promise<void> {
       console.error(`❌ Onboarding reminder job ${job.id} failed:`, error);
     });
 
+    // Initialize no-show detection queue
+    noShowDetectionQueue = new Bull('no-show-detection', {
+      redis: redisConfig,
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 2000,
+        },
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
+    });
+
+    // Event listeners for no-show detection
+    noShowDetectionQueue.on('error', (error: Error) => {
+      console.error('❌ No-show detection queue error:', error);
+    });
+
+    noShowDetectionQueue.on('completed', (job: Job) => {
+      console.log(`✅ No-show detection job ${job.id} completed`);
+    });
+
+    noShowDetectionQueue.on('failed', (job: Job, error: Error) => {
+      console.error(`❌ No-show detection job ${job.id} failed:`, error);
+    });
+
     console.log('✅ Bull queues initialized');
   } catch (error) {
     console.error('❌ Failed to initialize Bull:', error);
@@ -100,6 +128,10 @@ export async function closeBull(): Promise<void> {
     if (onboardingRemindersQueue) {
       await onboardingRemindersQueue.close();
       onboardingRemindersQueue = null;
+    }
+    if (noShowDetectionQueue) {
+      await noShowDetectionQueue.close();
+      noShowDetectionQueue = null;
     }
     console.log('✅ Bull queues closed');
   } catch (error) {
@@ -323,4 +355,56 @@ export async function processOnboardingReminders(
   });
 
   console.log('👂 Onboarding reminders processor registered');
+}
+
+/**
+ * Get the no-show detection queue instance
+ */
+export function getNoShowDetectionQueue(): Queue {
+  if (!noShowDetectionQueue) {
+    throw new Error('Bull queues not initialized. Call initBull() first.');
+  }
+  return noShowDetectionQueue;
+}
+
+/**
+ * Schedule recurring no-show detection job
+ * Runs every hour to check for bookings that should be marked as no-shows
+ *
+ * @returns Job ID
+ */
+export async function scheduleNoShowDetection(): Promise<string> {
+  const queue = getNoShowDetectionQueue();
+
+  // Add a recurring job that runs every hour
+  const job = await queue.add(
+    'detect-no-shows',
+    {}, // No data needed - the handler will fetch bookings from DB
+    {
+      repeat: {
+        cron: '0 * * * *', // Every hour at minute 0
+      },
+      jobId: 'no-show-detection-hourly', // Fixed ID so we don't create duplicates
+    }
+  );
+
+  console.log(`📅 Scheduled hourly no-show detection (Job ID: ${job.id})`);
+  return job.id as string;
+}
+
+/**
+ * Process no-show detection jobs
+ * This function should be called from the worker
+ */
+export async function processNoShowDetection(
+  handler: (job: Job) => Promise<void>
+): Promise<void> {
+  const queue = getNoShowDetectionQueue();
+
+  queue.process('detect-no-shows', async (job: Job) => {
+    console.log(`🔍 Processing no-show detection job ${job.id}`);
+    await handler(job);
+  });
+
+  console.log('👂 No-show detection processor registered');
 }

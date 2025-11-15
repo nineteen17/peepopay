@@ -1,7 +1,15 @@
 import dotenv from 'dotenv';
 import { initRedis, closeRedis } from './lib/redis.js';
 import { initRabbitMQ, closeRabbitMQ, consumeQueue, QUEUES } from './lib/queue.js';
-import { initBull, closeBull, processBookingReminders, processOnboardingReminders } from './lib/bull.js';
+import {
+  initBull,
+  closeBull,
+  processBookingReminders,
+  processOnboardingReminders,
+  processNoShowDetection,
+  scheduleNoShowDetection,
+} from './lib/bull.js';
+import { processNoShows } from './lib/noShowDetection.js';
 import { Resend } from 'resend';
 import { render } from '@react-email/render';
 import { config } from './config/index.js';
@@ -368,6 +376,31 @@ async function handleOnboardingReminder(job: Job) {
   }
 }
 
+// No-show detection handler (Bull queue processor)
+async function handleNoShowDetection(job: Job) {
+  console.log(`🔍 Processing no-show detection job ${job.id}`);
+
+  try {
+    const summary = await processNoShows();
+
+    console.log(`📊 No-show detection summary:`, {
+      totalFound: summary.totalFound,
+      totalProcessed: summary.totalProcessed,
+      totalFailed: summary.totalFailed,
+    });
+
+    if (summary.errors.length > 0) {
+      console.error(`⚠️  Errors occurred during no-show detection:`, summary.errors);
+    }
+
+    // Job succeeds even if some bookings failed - we don't want to retry the entire batch
+    // Individual booking errors are logged above
+  } catch (error) {
+    console.error(`❌ Failed to process no-show detection:`, error);
+    throw error; // Will be retried by Bull
+  }
+}
+
 // Auth email handler
 async function handleAuthEmail(message: any) {
   const { type, to, data } = message;
@@ -514,6 +547,10 @@ async function startWorker() {
     // Start processing Bull queues
     await processBookingReminders(handleBookingReminder);
     await processOnboardingReminders(handleOnboardingReminder);
+    await processNoShowDetection(handleNoShowDetection);
+
+    // Schedule recurring no-show detection (runs every hour)
+    await scheduleNoShowDetection();
 
     console.log('✅ Worker is ready and listening for jobs...');
   } catch (error) {
@@ -527,6 +564,7 @@ async function gracefulShutdown(signal: string) {
   console.log(`\n${signal} signal received: shutting down worker gracefully`);
 
   try {
+    await closeBull();
     await closeRedis();
     await closeRabbitMQ();
     console.log('✅ Worker shut down gracefully');
