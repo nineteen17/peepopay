@@ -91,15 +91,71 @@ export async function isAccountOnboarded(accountId: string): Promise<boolean> {
 }
 
 /**
- * Create a refund
+ * Create a refund with support for partial refunds and metadata
+ *
+ * @param params - Refund parameters
+ * @returns Stripe refund object
+ *
+ * @example
+ * // Full refund
+ * const refund = await createRefund({
+ *   paymentIntentId: 'pi_xxx',
+ *   metadata: { bookingId: 'xxx', reason: 'within_window' }
+ * });
+ *
+ * // Partial refund
+ * const refund = await createRefund({
+ *   paymentIntentId: 'pi_xxx',
+ *   amount: 5000, // $50.00
+ *   metadata: {
+ *     bookingId: 'xxx',
+ *     reason: 'late_cancellation',
+ *     feeCharged: '3000',
+ *     refundAmount: '5000'
+ *   }
+ * });
  */
-export async function createRefund(paymentIntentId: string, amount?: number) {
-  const refund = await stripe.refunds.create({
-    payment_intent: paymentIntentId,
-    amount,
-  });
+export async function createRefund(params: {
+  paymentIntentId: string;
+  amount?: number; // Optional amount for partial refunds (in cents)
+  reason?: string; // Refund reason code
+  metadata?: Record<string, string>; // Additional metadata for tracking
+}) {
+  // Validate payment intent ID
+  if (!params.paymentIntentId || !params.paymentIntentId.startsWith('pi_')) {
+    throw new Error('Invalid payment intent ID');
+  }
 
-  return refund;
+  // Validate amount if provided
+  if (params.amount !== undefined && params.amount < 0) {
+    throw new Error('Refund amount cannot be negative');
+  }
+
+  try {
+    const refund = await stripe.refunds.create({
+      payment_intent: params.paymentIntentId,
+      amount: params.amount, // If undefined, Stripe will refund the full amount
+      reason: params.reason as Stripe.RefundCreateParams.Reason | undefined,
+      metadata: {
+        ...params.metadata,
+        refundedAt: new Date().toISOString(),
+      },
+    });
+
+    return refund;
+  } catch (error) {
+    // Enhanced error handling
+    if (error instanceof Stripe.errors.StripeError) {
+      console.error('Stripe refund error:', {
+        type: error.type,
+        code: error.code,
+        message: error.message,
+        paymentIntentId: params.paymentIntentId,
+      });
+      throw new Error(`Stripe refund failed: ${error.message}`);
+    }
+    throw error;
+  }
 }
 
 /**

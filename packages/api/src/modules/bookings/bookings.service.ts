@@ -6,6 +6,7 @@ import { createPaymentIntent, createRefund } from '../../lib/stripe.js';
 import { createQueueService } from '../../lib/queue.js';
 import { scheduleBookingReminder, cancelBookingReminder } from '../../lib/bull.js';
 import { createPolicySnapshot } from '../../lib/policySnapshot.js';
+import { calculateRefundAmount, validateRefundAmount } from '../../lib/refundCalculator.js';
 
 export interface BookingFilters {
   status?: string;
@@ -289,26 +290,70 @@ export class BookingsService {
       );
     }
 
-    // Process refund if payment was made
-    let refundAmount = 0;
+    // Calculate refund using policy snapshot and cancellation timing
+    const cancellationTime = new Date();
+    const refundResult = calculateRefundAmount(
+      booking,
+      cancellationTime,
+      'UTC' // TODO: Use customer's timezone when available
+    );
+
+    console.log(`📊 Refund calculation for booking ${id}:`, {
+      reason: refundResult.reason,
+      refundAmount: refundResult.refundAmount,
+      feeCharged: refundResult.feeCharged,
+      hoursUntilBooking: refundResult.hoursUntilBooking.toFixed(1),
+      explanation: refundResult.explanation,
+    });
+
+    // Process refund if payment was made and refund is due
+    let stripeRefundId: string | undefined;
     if (booking.depositStatus === 'paid' && booking.stripePaymentIntentId) {
-      try {
-        const refund = await createRefund(booking.stripePaymentIntentId);
-        refundAmount = refund.amount;
-        console.log(`✅ Refund processed: ${refund.id} for booking ${id}`);
-      } catch (error) {
-        console.error('Failed to process refund:', error);
-        // Continue with cancellation even if refund fails
-        // Admin will need to handle refund manually
+      if (refundResult.refundAmount > 0) {
+        try {
+          // Validate refund amount doesn't exceed deposit
+          const validatedAmount = validateRefundAmount(
+            refundResult.refundAmount,
+            booking.depositAmount
+          );
+
+          const refund = await createRefund({
+            paymentIntentId: booking.stripePaymentIntentId,
+            amount: validatedAmount,
+            reason: refundResult.reason,
+            metadata: {
+              bookingId: booking.id,
+              refundReason: refundResult.reason,
+              feeCharged: refundResult.feeCharged.toString(),
+              refundAmount: validatedAmount.toString(),
+              hoursUntilBooking: refundResult.hoursUntilBooking.toFixed(1),
+              policyUsed: refundResult.policyUsed,
+            },
+          });
+
+          stripeRefundId = refund.id;
+          console.log(`✅ Refund processed: ${refund.id} for booking ${id} - Amount: $${(validatedAmount / 100).toFixed(2)}`);
+        } catch (error) {
+          console.error('Failed to process refund:', error);
+          // Continue with cancellation even if refund fails
+          // Admin will need to handle refund manually
+        }
+      } else {
+        console.log(`ℹ️  No refund due for booking ${id}: ${refundResult.explanation}`);
       }
     }
 
-    // Update booking status
+    // Update booking status with refund tracking fields
     const [updated] = await db
       .update(bookings)
       .set({
         status: 'cancelled',
-        depositStatus: refundAmount > 0 ? 'refunded' : booking.depositStatus,
+        depositStatus: refundResult.refundAmount > 0 ? 'refunded' : booking.depositStatus,
+        cancellationTime,
+        cancellationReason: refundResult.explanation,
+        refundAmount: refundResult.refundAmount,
+        refundReason: refundResult.reason,
+        feeCharged: refundResult.feeCharged,
         updatedAt: new Date(),
       })
       .where(eq(bookings.id, id))
@@ -328,7 +373,7 @@ export class BookingsService {
           customerName: booking.customerName,
           providerName: booking.service.user.name,
           bookingDate: booking.bookingDate,
-          refundAmount: refundAmount > 0 ? refundAmount : undefined,
+          refundAmount: refundResult.refundAmount > 0 ? refundResult.refundAmount : undefined,
         }
       );
     }
