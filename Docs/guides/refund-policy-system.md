@@ -1,6 +1,6 @@
 # Refund Policy System
 
-> **Implementation Status**: Phase 4 Complete (Refund Calculation Engine)
+> **Implementation Status**: Phase 5 Complete (No-Show Detection System)
 >
 > **Last Updated**: 2025-11-15
 
@@ -15,7 +15,7 @@ The PeepoPay refund policy system provides flexible, fair, and automated refund 
 - ✅ **Late Cancellation Fees** - Configurable penalties for cancellations outside window (Phase 4)
 - ✅ **Refund Calculation Engine** - Automated refund calculations with timezone support (Phase 4)
 - ✅ **Flex Pass Override** - Optional cancellation protection for full refunds (Phase 4)
-- ⏳ **No-Show Detection** - Automatic detection and fee charging (Phase 5)
+- ✅ **No-Show Detection** - Automatic detection and fee charging with hourly cron job (Phase 5)
 - ⏳ **Dispute Resolution** - Built-in dispute handling workflow (Phase 7)
 - ⏳ **Industry Defaults** - Pre-configured policies for different verticals (Phase 9)
 
@@ -194,27 +194,118 @@ If customer cancels (even 1 hour before):
 - Provider keeps: $4 (40% of flex pass)
 ```
 
-### 5. No-Show Detection (Phase 5 - Coming Soon)
+### 5. No-Show Detection System (Phase 5 ✅)
 
-Automatic detection of no-shows with grace period:
+**File**: `packages/api/src/lib/noShowDetection.ts`
+
+Automatic detection and fee charging for customers who don't show up for appointments.
+
+#### How It Works
+
+1. **Hourly Automated Detection**: Worker job runs every hour (`0 * * * *` cron)
+2. **2-Hour Grace Period**: Bookings 2+ hours past start time are eligible
+3. **No-Show Fee**: Charges fee from policy snapshot (or full deposit as fallback)
+4. **Notifications**: Sends emails to both customer and provider
+5. **Manual Marking**: Providers can manually mark bookings as no-show via API
+
+#### API Functions
 
 ```typescript
-// Runs hourly via worker
-async function checkForNoShows() {
-  const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000); // 2 hours ago
+import {
+  checkForNoShows,
+  markAsNoShow,
+  processNoShows,
+  getNoShowStatistics,
+} from '@/lib/noShowDetection';
 
-  const noShows = await db.query.bookings.findMany({
-    where: and(
-      eq(bookings.status, 'confirmed'),
-      lt(bookings.bookingDate, cutoff)
-    )
-  });
+// Find potential no-shows (2+ hours past booking time)
+const potentialNoShows = await checkForNoShows();
 
-  for (const booking of noShows) {
-    await markAsNoShow(booking);
-  }
-}
+// Mark booking as no-show (charges fee, sends notifications)
+const updatedBooking = await markAsNoShow(bookingId, userId);
+
+// Batch process all no-shows (hourly worker job)
+const summary = await processNoShows();
+// Returns: { totalFound, totalProcessed, totalFailed, errors }
+
+// Get provider analytics
+const stats = await getNoShowStatistics(providerId, startDate, endDate);
+// Returns: { totalNoShows, totalFeesCharged, averageFee }
 ```
+
+#### Worker Integration
+
+**File**: `packages/api/src/worker.ts`
+
+```typescript
+import { processNoShowDetection, scheduleNoShowDetection } from './lib/bull.js';
+import { processNoShows } from './lib/noShowDetection.js';
+
+async function handleNoShowDetection(job: Job) {
+  const summary = await processNoShows();
+  console.log(`📊 No-show detection summary:`, {
+    totalFound: summary.totalFound,
+    totalProcessed: summary.totalProcessed,
+    totalFailed: summary.totalFailed,
+  });
+}
+
+// Register processor
+await processNoShowDetection(handleNoShowDetection);
+
+// Schedule recurring hourly job
+await scheduleNoShowDetection();
+```
+
+#### Manual No-Show Endpoint
+
+**Endpoint**: `POST /api/bookings/:id/no-show`
+
+Providers can manually mark a booking as no-show:
+
+```typescript
+// packages/api/src/modules/bookings/bookings.controller.ts
+router.post('/:id/no-show', requireAuth, async (req: AuthRequest, res, next) => {
+  const booking = await bookingsService.markBookingAsNoShow(req.params.id, req.user!.id);
+  res.json({ booking });
+});
+```
+
+#### No-Show Fee Calculation
+
+```typescript
+import { calculateNoShowFee } from '@/lib/refundCalculator';
+
+const fee = calculateNoShowFee(booking);
+// Uses policy snapshot if available, otherwise full deposit
+```
+
+#### Test Coverage
+
+**File**: `packages/api/src/lib/noShowDetection.test.ts`
+
+- **checkForNoShows()**: 4 tests
+  - Finds confirmed bookings past grace period
+  - Excludes bookings within grace period
+  - Excludes already-processed bookings
+  - Returns bookings with service/user details
+- **markAsNoShow()**: 8 tests
+  - Marks booking and charges fee
+  - Validates ownership (provider only)
+  - Uses deposit as fallback when no policy snapshot
+  - Sends notifications to customer and provider
+  - Records who marked (system vs provider)
+  - Error handling (booking not found, invalid status)
+- **processNoShows()**: 3 tests
+  - Batch processing with success count
+  - Error handling (continues on failures)
+  - Empty result handling
+- **getNoShowStatistics()**: 3 tests
+  - Calculates totals and averages
+  - Handles null fees
+  - Returns zero stats when empty
+
+**Total**: 17 tests, all passing ✅
 
 ### 6. Dispute Resolution (Phase 7 - Coming Soon)
 
@@ -385,9 +476,13 @@ Comprehensive test coverage ensures system integrity:
 cd packages/api
 npm test -- policySnapshot.test.ts
 npm test -- refundCalculator.test.ts
+npm test -- noShowDetection.test.ts
 ```
 
-**Total: 55 tests, 100% passing** ✅
+**Total: 72 tests, 100% passing** ✅
+- Policy Snapshot: 21 tests
+- Refund Calculator: 34 tests
+- No-Show Detection: 17 tests
 
 ## Critical Implementation Rules
 
@@ -432,12 +527,14 @@ const bookingInUserTz = formatInTimeZone(
 - [x] **Phase 2**: Database schema - policy fields (Week 2) ✅
 - [x] **Phase 3**: Policy snapshot system (Week 3) ✅
 - [x] **Phase 4**: Refund calculation engine (Week 3-4) ✅
-- [ ] **Phase 5**: No-show detection (Week 4)
+- [x] **Phase 5**: No-show detection with hourly worker (Week 4) ✅
 - [ ] **Phase 6**: Flex pass implementation (Week 5)
 - [ ] **Phase 7**: Dispute handling (Week 5)
 - [ ] **Phase 8**: Dashboard UI (Week 6)
 - [ ] **Phase 9**: Industry defaults (Week 6)
 - [ ] **Phase 10**: Protection addons (Week 7)
+
+**Next Phase**: Flex Pass Implementation (Phase 6)
 
 ## Related Documentation
 

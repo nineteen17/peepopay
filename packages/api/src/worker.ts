@@ -25,6 +25,8 @@ import {
   VerifyEmail,
   PasswordResetEmail,
   PasswordChangedEmail,
+  NoShowNotificationEmail,
+  RefundNotificationEmail,
 } from './emails/index.js';
 import type { Job } from 'bull';
 
@@ -292,6 +294,117 @@ async function handleBookingCompletion(message: any) {
   }
 }
 
+// No-show notification handler
+async function handleNoShowNotification(message: any) {
+  const { bookingId, customerEmail, providerEmail, details } = message;
+
+  console.log(`🚫 Processing no-show notification for ${bookingId}`);
+
+  try {
+    const bookingDate = details.bookingDate
+      ? new Date(details.bookingDate).toLocaleString()
+      : undefined;
+
+    // Send no-show email to customer
+    const customerHtml = render(
+      NoShowNotificationEmail({
+        bookingId,
+        serviceName: details.serviceName,
+        bookingDate: bookingDate || 'N/A',
+        feeCharged: details.feeCharged,
+        recipientName: details.customerName,
+        recipientEmail: customerEmail,
+        recipientType: 'customer',
+      })
+    );
+
+    const customerResult = await resend.emails.send({
+      from: `${config.email.fromName} <${config.email.fromEmail}>`,
+      to: customerEmail,
+      subject: `No-Show Fee Notice - ${details.serviceName}`,
+      html: customerHtml,
+    });
+
+    if (customerResult.error) {
+      throw new Error(`Customer email: ${customerResult.error.message}`);
+    }
+
+    console.log(`✅ Customer no-show email sent (ID: ${customerResult.data?.id})`);
+
+    // Send no-show email to provider
+    const providerHtml = render(
+      NoShowNotificationEmail({
+        bookingId,
+        serviceName: details.serviceName,
+        bookingDate: bookingDate || 'N/A',
+        feeCharged: details.feeCharged,
+        recipientName: details.providerName,
+        recipientEmail: providerEmail,
+        recipientType: 'provider',
+      })
+    );
+
+    const providerResult = await resend.emails.send({
+      from: `${config.email.fromName} <${config.email.fromEmail}>`,
+      to: providerEmail,
+      subject: `Customer No-Show - ${details.serviceName}`,
+      html: providerHtml,
+    });
+
+    if (providerResult.error) {
+      throw new Error(`Provider email: ${providerResult.error.message}`);
+    }
+
+    console.log(`✅ Provider no-show email sent (ID: ${providerResult.data?.id})`);
+    console.log(`✅ All no-show emails sent for ${bookingId}`);
+  } catch (error) {
+    console.error(`❌ Failed to send no-show notification for ${bookingId}:`, error);
+    throw error; // Will be retried or sent to dead letter queue
+  }
+}
+
+// Refund notification handler
+async function handleRefundNotification(message: any) {
+  const { bookingId, customerEmail, details } = message;
+
+  console.log(`💰 Processing refund notification for ${bookingId}`);
+
+  try {
+    const bookingDate = details.bookingDate
+      ? new Date(details.bookingDate).toLocaleString()
+      : undefined;
+
+    // Render the refund notification email template
+    const html = render(
+      RefundNotificationEmail({
+        bookingId,
+        serviceName: details.serviceName,
+        bookingDate: bookingDate || 'N/A',
+        refundAmount: details.refundAmount,
+        cancellationReason: details.cancellationReason,
+        customerName: details.customerName,
+        customerEmail,
+      })
+    );
+
+    const result = await resend.emails.send({
+      from: `${config.email.fromName} <${config.email.fromEmail}>`,
+      to: customerEmail,
+      subject: `Refund Processed - ${details.serviceName}`,
+      html,
+    });
+
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+
+    console.log(`✅ Refund notification sent for ${bookingId} (ID: ${result.data?.id})`);
+  } catch (error) {
+    console.error(`❌ Failed to send refund notification for ${bookingId}:`, error);
+    throw error; // Will be retried or sent to dead letter queue
+  }
+}
+
 // Booking reminder handler (Bull queue processor)
 async function handleBookingReminder(job: Job) {
   const { bookingId, customerEmail, customerName, serviceName, bookingDate, duration, price } = job.data;
@@ -539,6 +652,8 @@ async function startWorker() {
     await consumeQueue(QUEUES.BOOKING_CONFIRMATIONS, handleBookingConfirmation, { prefetch: 3 });
     await consumeQueue(QUEUES.BOOKING_CANCELLATIONS, handleBookingCancellation, { prefetch: 3 });
     await consumeQueue(QUEUES.BOOKING_COMPLETIONS, handleBookingCompletion, { prefetch: 3 });
+    await consumeQueue(QUEUES.NO_SHOW_NOTIFICATIONS, handleNoShowNotification, { prefetch: 3 });
+    await consumeQueue(QUEUES.REFUND_NOTIFICATIONS, handleRefundNotification, { prefetch: 5 });
     await consumeQueue(QUEUES.PAYMENT_FAILURES, handlePaymentFailure, { prefetch: 5 });
     await consumeQueue(QUEUES.AUTH_EMAILS, handleAuthEmail, { prefetch: 5 });
     await consumeQueue(QUEUES.STRIPE_WEBHOOKS, handleStripeWebhook, { prefetch: 10 });
