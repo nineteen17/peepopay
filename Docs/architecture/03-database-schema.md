@@ -2,7 +2,7 @@
 
 > 💡 **Source of Truth**: This documentation is generated from the actual schema files in `packages/api/src/db/schema/`
 >
-> **Last Updated**: 2025-11-12 (Implementation Plan migration applied)
+> **Last Updated**: 2025-11-15 (Phase 3: Policy Snapshot System completed)
 
 ## Overview
 
@@ -128,6 +128,23 @@ export const services = pgTable('services', {
   isActive: boolean('is_active').default(true),
   requiresApproval: boolean('requires_approval').default(false),
 
+  // Refund Policy Settings (Phase 2)
+  cancellationWindowHours: integer('cancellation_window_hours').default(24),
+  lateCancellationFee: integer('late_cancellation_fee'), // Cents
+  noShowFee: integer('no_show_fee'), // Cents
+  allowPartialRefunds: boolean('allow_partial_refunds').default(true),
+  autoRefundOnCancel: boolean('auto_refund_on_cancel').default(true),
+  minimumCancellationHours: integer('minimum_cancellation_hours').default(2),
+
+  // Flex Pass (Cancellation Protection) (Phase 2)
+  flexPassEnabled: boolean('flex_pass_enabled').default(false),
+  flexPassPrice: integer('flex_pass_price'), // Cents
+  flexPassRevenueSharePercent: integer('flex_pass_revenue_share_percent').default(60),
+  flexPassRulesJson: jsonb('flex_pass_rules_json'),
+
+  // Protection Addons (Phase 2)
+  protectionAddons: jsonb('protection_addons'),
+
   // Timestamps
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -138,11 +155,25 @@ export const services = pgTable('services', {
 - `userId`
 - `isActive`
 
+**Refund Policy Fields** (Phase 2):
+- `cancellationWindowHours` - Hours before booking for free cancellation (default: 24)
+- `lateCancellationFee` - Fee charged for cancellations outside window (optional, in cents)
+- `noShowFee` - Fee charged when customer doesn't show up (optional, in cents)
+- `allowPartialRefunds` - Whether to allow partial refunds based on timing (default: true)
+- `autoRefundOnCancel` - Automatically process refunds (default: true)
+- `minimumCancellationHours` - Minimum hours before booking to allow cancellation (default: 2)
+- `flexPassEnabled` - Offer cancellation protection add-on (default: false)
+- `flexPassPrice` - Price for flex pass in cents (e.g., 500 = $5.00)
+- `flexPassRevenueSharePercent` - Platform's share of flex pass fee (default: 60%)
+- `protectionAddons` - Industry-specific protection addons (JSONB array)
+
 **Notes**:
 - All amounts stored in **cents** for precision
 - `depositType='percentage'`: `depositAmount` is percentage (e.g., 25 = 25%)
 - `depositType='fixed'`: `depositAmount` is amount in cents
 - `depositPercentage` deprecated in favor of `depositType` system
+- Policy fields are captured in booking snapshots to ensure fair refund processing
+- See `Docs/guides/refund-policy-system.md` for detailed policy documentation
 
 ---
 
@@ -173,14 +204,39 @@ export const bookings = pgTable('bookings', {
   depositAmount: integer('deposit_amount').notNull(), // Cents
   depositStatus: text('deposit_status', {
     enum: ['pending', 'paid', 'failed', 'refunded']
-  }).default('pending').notNull(), // NEW: separate payment status
+  }).default('pending').notNull(),
   status: text('status', {
-    enum: ['pending', 'confirmed', 'cancelled', 'completed', 'refunded']
+    enum: ['pending', 'confirmed', 'cancelled', 'completed', 'refunded', 'no_show']
   }).default('pending').notNull(),
 
   // Stripe
   stripePaymentIntentId: text('stripe_payment_intent_id').unique(),
   stripeChargeId: text('stripe_charge_id'),
+
+  // Cancellation & Refund Tracking (Phase 2)
+  cancellationTime: timestamp('cancellation_time'),
+  cancellationReason: text('cancellation_reason'),
+  refundAmount: integer('refund_amount'), // Cents
+  refundReason: text('refund_reason'),
+  feeCharged: integer('fee_charged'), // Cents
+
+  // Flex Pass (Cancellation Protection) (Phase 2)
+  flexPassPurchased: boolean('flex_pass_purchased').default(false),
+  flexPassFee: integer('flex_pass_fee'), // Cents
+
+  // Policy Snapshot (CRITICAL - Phase 3)
+  policySnapshotJson: jsonb('policy_snapshot_json'),
+
+  // Dispute Handling (Phase 2)
+  disputeStatus: text('dispute_status', {
+    enum: ['none', 'pending', 'resolved_customer', 'resolved_provider']
+  }).default('none').notNull(),
+  disputeReason: text('dispute_reason'),
+  disputeCreatedAt: timestamp('dispute_created_at'),
+  disputeResolvedAt: timestamp('dispute_resolved_at'),
+
+  // Vertical-Specific Data (Phase 2)
+  verticalData: jsonb('vertical_data'),
 
   // Metadata
   metadata: jsonb('metadata'), // Flexible JSON data
@@ -191,19 +247,24 @@ export const bookings = pgTable('bookings', {
 });
 ```
 
-**Indexes** (NEW - Added in migration):
+**Indexes**:
 - `userId`
 - `bookingDate`
 - `status`
 - `stripePaymentIntentId`
+- `cancellationTime` (Phase 2)
+- `disputeStatus` (Phase 2)
+- `flexPassPurchased` (Phase 2)
 
 **Status Flow**:
 ```
 pending → confirmed → completed
+   ↓          ↓          ↓
+cancelled  cancelled  refunded
    ↓          ↓
-cancelled  cancelled
-   ↓
-refunded
+refunded  no_show
+            ↓
+         refunded (if disputed)
 ```
 
 **Deposit Status Flow**:
@@ -213,10 +274,20 @@ pending → paid
 failed  refunded
 ```
 
+**Policy Snapshot** (⚠️ **CRITICAL - Phase 3**):
+- `policySnapshotJson` stores the service's refund policy at the time of booking
+- **Always use the snapshot** for refund calculations, never the current service policy
+- Ensures fairness: providers can't change policies retroactively
+- Created automatically on booking via `createPolicySnapshot()` function
+- See `packages/api/src/lib/policySnapshot.ts` for implementation
+- See `Docs/guides/refund-policy-system.md` for detailed documentation
+
 **Notes**:
 - `userId` = provider (service owner), NOT customer
 - `bookingDate` stored in UTC, convert using user's timezone
 - `depositStatus` tracks payment, `status` tracks booking lifecycle
+- `no_show` status added in Phase 2 for no-show detection
+- `verticalData` allows industry-specific extensions (e.g., medical: patient notes, legal: case number)
 
 ---
 
