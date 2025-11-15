@@ -5,6 +5,7 @@ import { AppError } from '../../middleware/errorHandler.js';
 import { createPaymentIntent, createRefund } from '../../lib/stripe.js';
 import { createQueueService } from '../../lib/queue.js';
 import { scheduleBookingReminder, cancelBookingReminder } from '../../lib/bull.js';
+import { createPolicySnapshot } from '../../lib/policySnapshot.js';
 
 export interface BookingFilters {
   status?: string;
@@ -164,7 +165,11 @@ export class BookingsService {
         throw new AppError(409, 'This time slot is no longer available. Please select a different time.');
       }
 
-      // 3. Create payment intent
+      // 3. Create policy snapshot to preserve policy at time of booking
+      const policySnapshot = createPolicySnapshot(service);
+      console.log(`Policy snapshot created for booking - service: ${service.id}, version: ${service.updatedAt.toISOString()}`);
+
+      // 4. Create payment intent
       const paymentIntent = await createPaymentIntent({
         amount: validatedData.depositAmount,
         connectedAccountId: service.user.stripeAccountId,
@@ -176,7 +181,7 @@ export class BookingsService {
         },
       });
 
-      // 4. Create booking with payment intent ID
+      // 5. Create booking with payment intent ID and policy snapshot
       const [newBooking] = await tx
         .insert(bookings)
         .values({
@@ -186,6 +191,7 @@ export class BookingsService {
           depositStatus: 'pending',
           stripePaymentIntentId: paymentIntent.id,
           bookingDate,
+          policySnapshotJson: policySnapshot as any, // Store policy snapshot as JSONB
         })
         .returning();
 

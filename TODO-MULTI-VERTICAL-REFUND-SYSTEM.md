@@ -162,27 +162,46 @@
 
 ---
 
-## Phase 3: Policy Snapshot System (Week 3)
+## Phase 3: Policy Snapshot System (Week 3) ✅ COMPLETED
 
 ### 3.1 Create Policy Snapshot Module
 
-- [ ] **Create**: `packages/api/src/lib/policySnapshot.ts`
-  - [ ] Type: `PolicySnapshot` interface with all policy fields
-  - [ ] Function: `createPolicySnapshot(service): PolicySnapshot`
-  - [ ] Function: `getPolicyFromSnapshot(booking): PolicySnapshot`
-  - [ ] Function: `validatePolicySnapshot(snapshot): boolean`
-  - [ ] Add error handling
-  - [ ] Add TypeScript types
+- [x] **Create**: `packages/api/src/lib/policySnapshot.ts`
+  - [x] Type: `PolicySnapshot` interface with all policy fields
+  - [x] Function: `createPolicySnapshot(service): PolicySnapshot`
+  - [x] Function: `getPolicyFromSnapshot(booking): PolicySnapshot`
+  - [x] Function: `validatePolicySnapshot(snapshot): boolean`
+  - [x] Add error handling
+  - [x] Add TypeScript types
+  - [x] Add helper functions: `hasValidPolicySnapshot()`, `getPolicySummary()`
 
 ### 3.2 Update Booking Creation
 
-- [ ] **Update**: `packages/api/src/modules/bookings/bookings.service.ts`
-  - [ ] In `createBooking()` method (~line 178):
-    - [ ] Import policySnapshot functions
-    - [ ] Call `createPolicySnapshot(service)`
-    - [ ] Store snapshot in `policySnapshotJson` field
-    - [ ] Include `serviceVersion: service.updatedAt` in snapshot
-    - [ ] Add logging: "Policy snapshot created for booking {id}"
+- [x] **Update**: `packages/api/src/modules/bookings/bookings.service.ts`
+  - [x] In `createBooking()` method (~line 168):
+    - [x] Import policySnapshot functions
+    - [x] Call `createPolicySnapshot(service)`
+    - [x] Store snapshot in `policySnapshotJson` field
+    - [x] Include `serviceVersion: service.updatedAt` in snapshot
+    - [x] Add logging: "Policy snapshot created for booking {id}"
+
+### 3.3 Testing
+
+- [x] **Created**: `packages/api/src/lib/policySnapshot.test.ts`
+  - [x] 21 comprehensive unit tests covering all functionality
+  - [x] Tests for snapshot creation with various service configurations
+  - [x] Tests for snapshot validation and error handling
+  - [x] Tests for edge cases and immutability
+  - [x] All tests passing ✅
+
+**Git Commits:**
+- feat(api): Implement policy snapshot system for booking refund policies
+
+**Notes:**
+- Policy snapshot ensures refund calculations use policy at booking time, not current policy
+- Comprehensive validation with Zod schemas
+- Helper functions for summary generation and validation checks
+- Robust error handling for invalid or missing snapshots
 
 ---
 
