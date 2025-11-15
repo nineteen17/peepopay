@@ -5,7 +5,7 @@
  * Any manual changes will be overwritten on the next sync.
  *
  * Source: packages/api/openapi.json
- * Generated: 2025-11-15T10:07:14.044Z
+ * Generated: 2025-11-15T10:18:42.204Z
  *
  * To update this file, run:
  *   npm run sync-types

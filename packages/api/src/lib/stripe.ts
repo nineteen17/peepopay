@@ -46,26 +46,74 @@ export async function createAccountLink(accountId: string, returnUrl: string, re
 }
 
 /**
- * Create a payment intent for booking deposit
+ * Create a payment intent for booking deposit with optional flex pass
+ *
+ * Revenue Split:
+ * - Deposit: 2.5% platform fee goes to platform, rest to provider
+ * - Flex Pass: Platform share (60-70%) goes to platform, rest to provider
+ *
+ * @example
+ * // Without flex pass
+ * createPaymentIntent({
+ *   amount: 10000,
+ *   connectedAccountId: 'acct_xxx'
+ * });
+ * // Platform gets: $250 (2.5% of $100)
+ * // Provider gets: $9,750
+ *
+ * @example
+ * // With flex pass ($10 deposit + $5 flex pass)
+ * createPaymentIntent({
+ *   amount: 10000,
+ *   connectedAccountId: 'acct_xxx',
+ *   flexPassFee: 500,
+ *   flexPassPlatformSharePercent: 60
+ * });
+ * // Platform gets: $250 (2.5% of deposit) + $300 (60% of flex pass) = $550
+ * // Provider gets: $9,750 + $200 (40% of flex pass) = $9,950
  */
 export async function createPaymentIntent(params: {
-  amount: number; // in cents
+  amount: number; // Deposit amount in cents
   currency?: string;
   connectedAccountId: string;
   customerId?: string;
   metadata?: Record<string, string>;
+  flexPassFee?: number; // Optional flex pass fee in cents
+  flexPassPlatformSharePercent?: number; // Platform's share of flex pass (60-70%)
 }) {
-  const platformFee = Math.round(params.amount * 0.025); // 2.5% platform fee
+  // Base platform fee: 2.5% of deposit amount
+  const depositPlatformFee = Math.round(params.amount * 0.025);
+
+  // Calculate flex pass split if flex pass is purchased
+  let flexPassPlatformFee = 0;
+  let totalAmount = params.amount;
+
+  if (params.flexPassFee && params.flexPassFee > 0) {
+    const platformSharePercent = params.flexPassPlatformSharePercent || 60;
+    flexPassPlatformFee = Math.round(params.flexPassFee * (platformSharePercent / 100));
+    totalAmount = params.amount + params.flexPassFee;
+  }
+
+  // Total application fee = deposit platform fee + flex pass platform fee
+  const totalApplicationFee = depositPlatformFee + flexPassPlatformFee;
 
   const paymentIntent = await stripe.paymentIntents.create({
-    amount: params.amount,
+    amount: totalAmount,
     currency: params.currency || 'aud',
     customer: params.customerId,
-    application_fee_amount: platformFee,
+    application_fee_amount: totalApplicationFee,
     transfer_data: {
       destination: params.connectedAccountId,
     },
-    metadata: params.metadata,
+    metadata: {
+      ...params.metadata,
+      // Add flex pass metadata for tracking
+      ...(params.flexPassFee && {
+        flexPassFee: params.flexPassFee.toString(),
+        flexPassPlatformFee: flexPassPlatformFee.toString(),
+        flexPassProviderFee: (params.flexPassFee - flexPassPlatformFee).toString(),
+      }),
+    },
     automatic_payment_methods: {
       enabled: true,
     },

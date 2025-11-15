@@ -1,6 +1,6 @@
 # Refund Policy System
 
-> **Implementation Status**: Phase 5 Complete (No-Show Detection System)
+> **Implementation Status**: Phase 6 Complete (Flex Pass Payment Processing)
 >
 > **Last Updated**: 2025-11-15
 
@@ -307,7 +307,268 @@ const fee = calculateNoShowFee(booking);
 
 **Total**: 17 tests, all passing ✅
 
-### 6. Dispute Resolution (Phase 7 - Coming Soon)
+### 6. Flex Pass Payment Processing (Phase 6 ✅)
+
+**Files**:
+- `packages/api/src/lib/stripe.ts` - Payment intent creation with revenue splits
+- `packages/api/src/modules/bookings/bookings.service.ts` - Booking creation with flex pass
+- `packages/api/src/lib/flexPass.test.ts` - Comprehensive test suite
+
+Optional cancellation protection that customers can purchase at checkout for guaranteed full refunds anytime.
+
+#### How It Works
+
+1. **Provider Configuration**: Provider enables flex pass for a service and sets price
+2. **Customer Purchase**: Customer opts-in during booking checkout
+3. **Payment Processing**: Total charge = deposit + flex pass fee
+4. **Revenue Split**: Platform takes 60-70% of flex pass fee, provider gets 30-40%
+5. **Refund Override**: Flex pass overrides ALL cancellation policies → full refund anytime
+
+#### Revenue Split Architecture
+
+**Stripe Connect Application Fees**:
+- Total payment = Deposit + Flex Pass Fee
+- Deposit platform fee: 2.5% of deposit (standard)
+- Flex pass platform fee: 60-70% of flex pass price (configurable)
+- Total application fee = Deposit fee + Flex pass fee
+- Provider receives = Total payment - Application fees
+
+**Example 1**: $100 deposit + $5 flex pass (60% platform)
+```
+Total charged: $105
+Platform gets: $2.50 (2.5% deposit) + $3.00 (60% flex pass) = $5.50
+Provider gets: $97.50 (deposit minus fee) + $2.00 (40% flex pass) = $99.50
+```
+
+**Example 2**: $50 deposit + $10 flex pass (70% platform)
+```
+Total charged: $60
+Platform gets: $1.25 (2.5% deposit) + $7.00 (70% flex pass) = $8.25
+Provider gets: $48.75 (deposit minus fee) + $3.00 (30% flex pass) = $51.75
+```
+
+#### API - Provider Configuration
+
+Flex pass configuration is handled through the existing service update endpoint:
+
+**Endpoint**: `PUT /api/services/:id`
+
+```typescript
+// Enable flex pass for a service
+await axios.put('/api/services/service123', {
+  flexPassEnabled: true,
+  flexPassPrice: 500, // $5.00 in cents
+  flexPassRevenueSharePercent: 60, // Platform gets 60%, provider gets 40%
+});
+```
+
+#### API - Customer Purchase
+
+**Endpoint**: `POST /api/bookings`
+
+```typescript
+// Create booking with flex pass purchase
+const response = await axios.post('/api/bookings', {
+  serviceId: 'service123',
+  bookingDate: '2025-12-01T10:00:00Z',
+  customerName: 'John Doe',
+  customerEmail: 'john@example.com',
+  customerPhone: '+61400000000',
+  depositAmount: 10000, // $100
+  duration: 60,
+  flexPassPurchased: true, // Customer opts-in to flex pass
+});
+
+// Returns payment intent with total amount (deposit + flex pass)
+const { booking, clientSecret } = response.data;
+// Total to charge: $105 ($100 deposit + $5 flex pass)
+```
+
+#### Payment Intent Creation
+
+**File**: `packages/api/src/lib/stripe.ts`
+
+```typescript
+import { createPaymentIntent } from './lib/stripe';
+
+const paymentIntent = await createPaymentIntent({
+  amount: 10000, // Deposit in cents
+  connectedAccountId: 'acct_provider123',
+  flexPassFee: 500, // Flex pass fee in cents (optional)
+  flexPassPlatformSharePercent: 60, // Platform's share (optional)
+  metadata: {
+    serviceId: 'service123',
+    serviceName: 'Plumbing Service',
+    flexPassPurchased: 'true',
+  },
+});
+
+// Payment intent created with:
+// - amount: 10500 ($105 total)
+// - application_fee_amount: 550 ($2.50 deposit fee + $3.00 flex pass fee)
+// - transfer_data.destination: provider's Stripe account
+```
+
+#### Revenue Split Logic
+
+**File**: `packages/api/src/lib/refundCalculator.ts`
+
+```typescript
+import { calculateFlexPassSplit } from './lib/refundCalculator';
+
+const split = calculateFlexPassSplit(500, 60); // $5 flex pass, 60% platform
+// Returns:
+// {
+//   platformAmount: 300,        // $3.00 to platform
+//   providerAmount: 200,        // $2.00 to provider
+//   totalAmount: 500,           // $5.00 total
+//   platformPercentage: 60,
+//   providerPercentage: 40
+// }
+```
+
+#### Booking Creation Flow
+
+**File**: `packages/api/src/modules/bookings/bookings.service.ts`
+
+```typescript
+async function createBooking(data: NewBooking & { flexPassPurchased?: boolean }) {
+  // 1. Get service and verify flex pass is available
+  const service = await getService(data.serviceId);
+
+  if (data.flexPassPurchased && !service.flexPassEnabled) {
+    throw new Error('Flex pass not available for this service');
+  }
+
+  // 2. Calculate flex pass fee if purchased
+  let flexPassFee = 0;
+  if (data.flexPassPurchased && service.flexPassEnabled) {
+    flexPassFee = service.flexPassPrice;
+  }
+
+  // 3. Create payment intent with flex pass
+  const paymentIntent = await createPaymentIntent({
+    amount: data.depositAmount,
+    connectedAccountId: service.user.stripeAccountId,
+    flexPassFee: data.flexPassPurchased ? flexPassFee : undefined,
+    flexPassPlatformSharePercent: service.flexPassRevenueSharePercent,
+  });
+
+  // 4. Create booking with flex pass info
+  const booking = await db.insert(bookings).values({
+    ...data,
+    stripePaymentIntentId: paymentIntent.id,
+    flexPassPurchased: data.flexPassPurchased || false,
+    flexPassFee: data.flexPassPurchased ? flexPassFee : null,
+  });
+
+  return { booking, clientSecret: paymentIntent.client_secret };
+}
+```
+
+#### Refund Override
+
+When a booking with flex pass is cancelled, the refund calculator automatically returns full refund:
+
+```typescript
+import { calculateRefundAmount } from './lib/refundCalculator';
+
+const refundResult = calculateRefundAmount(booking, new Date());
+
+if (booking.flexPassPurchased) {
+  // Returns:
+  // {
+  //   refundAmount: 10000,  // Full deposit refunded
+  //   feeCharged: 0,         // No fee
+  //   reason: 'flex_pass_protection',
+  //   explanation: 'Full refund due to cancellation protection purchased...'
+  // }
+}
+```
+
+**Note**: Flex pass fee itself is NOT refunded - customer paid for the protection and used it.
+
+#### Test Coverage
+
+**File**: `packages/api/src/lib/flexPass.test.ts`
+
+- **Payment Intent - Without Flex Pass**: 2 tests
+  - Creates payment intent with only deposit
+  - Calculates correct platform fee (2.5%)
+- **Payment Intent - With Flex Pass (60% platform)**: 3 tests
+  - Adds flex pass fee to total amount
+  - Calculates combined application fees
+  - Adds flex pass metadata to payment intent
+  - Defaults to 60% if not specified
+- **Payment Intent - With Flex Pass (70% platform)**: 2 tests
+  - Calculates correct fees with 70% split
+  - Validates provider 30% share
+- **Revenue Split Calculations**: 3 tests
+  - $5 flex pass with 60% split
+  - Edge case: $1 flex pass
+  - Rounding behavior
+- **Edge Cases**: 4 tests
+  - Ignores flex pass if fee is 0
+  - Ignores flex pass if fee is negative
+  - Ignores flex pass if not provided
+  - Handles large flex pass fees
+- **Real-World Scenarios**: 3 tests
+  - Plumber booking with flex pass ($50 + $5)
+  - Dental appointment with flex pass ($100 + $10)
+  - Legal consultation without flex pass ($200)
+
+**Total**: 17 tests, all passing ✅
+
+#### Configuration Examples
+
+**Plumbing Service** (Encourage flex pass for emergencies):
+```typescript
+{
+  flexPassEnabled: true,
+  flexPassPrice: 500, // $5 for $50 deposit (10%)
+  flexPassRevenueSharePercent: 60,
+  cancellationWindowHours: 12, // Short window
+  lateCancellationFee: 2500, // $25 late fee (50% of deposit)
+}
+```
+
+**Dental Appointment** (Moderate flex pass):
+```typescript
+{
+  flexPassEnabled: true,
+  flexPassPrice: 1000, // $10 for $100 deposit (10%)
+  flexPassRevenueSharePercent: 65,
+  cancellationWindowHours: 24,
+  lateCancellationFee: 5000, // $50 late fee
+}
+```
+
+**Legal Consultation** (Premium flex pass):
+```typescript
+{
+  flexPassEnabled: true,
+  flexPassPrice: 2000, // $20 for $200 deposit (10%)
+  flexPassRevenueSharePercent: 70,
+  cancellationWindowHours: 48,
+  lateCancellationFee: 10000, // $100 late fee
+}
+```
+
+#### Frontend Integration (Pending - Phase 8)
+
+**Provider Dashboard**:
+- Toggle to enable/disable flex pass
+- Input field for flex pass price
+- Slider for revenue share (60-70%)
+- Preview of customer cost and provider earnings
+
+**Booking Widget**:
+- Optional checkbox: "Add Cancellation Protection for $X"
+- Clear explanation of benefits
+- Updated total price display
+- Payment element charges combined amount
+
+### 7. Dispute Resolution (Phase 7 - Coming Soon)
 
 Built-in workflow for handling customer disputes:
 
@@ -477,12 +738,14 @@ cd packages/api
 npm test -- policySnapshot.test.ts
 npm test -- refundCalculator.test.ts
 npm test -- noShowDetection.test.ts
+npm test -- flexPass.test.ts
 ```
 
-**Total: 72 tests, 100% passing** ✅
+**Total: 89 tests, 100% passing** ✅
 - Policy Snapshot: 21 tests
 - Refund Calculator: 34 tests
 - No-Show Detection: 17 tests
+- Flex Pass Payment Processing: 17 tests
 
 ## Critical Implementation Rules
 
@@ -528,13 +791,13 @@ const bookingInUserTz = formatInTimeZone(
 - [x] **Phase 3**: Policy snapshot system (Week 3) ✅
 - [x] **Phase 4**: Refund calculation engine (Week 3-4) ✅
 - [x] **Phase 5**: No-show detection with hourly worker (Week 4) ✅
-- [ ] **Phase 6**: Flex pass implementation (Week 5)
+- [x] **Phase 6**: Flex pass payment processing (Week 5) ✅
 - [ ] **Phase 7**: Dispute handling (Week 5)
-- [ ] **Phase 8**: Dashboard UI (Week 6)
+- [ ] **Phase 8**: Dashboard UI & Widget integration (Week 6)
 - [ ] **Phase 9**: Industry defaults (Week 6)
 - [ ] **Phase 10**: Protection addons (Week 7)
 
-**Next Phase**: Flex Pass Implementation (Phase 6)
+**Next Phase**: Phase 7 (Dispute Handling) or Phase 8 (Dashboard UI & Widget integration)
 
 ## Related Documentation
 

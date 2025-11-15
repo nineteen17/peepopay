@@ -134,7 +134,7 @@ export class BookingsService {
   /**
    * Create a new booking (public endpoint - from widget)
    */
-  async createBooking(data: NewBooking) {
+  async createBooking(data: NewBooking & { flexPassPurchased?: boolean }) {
     const validatedData = insertBookingSchema.parse(data) as unknown as NewBooking;
 
     // Use transaction to ensure data consistency
@@ -167,23 +167,48 @@ export class BookingsService {
         throw new AppError(409, 'This time slot is no longer available. Please select a different time.');
       }
 
-      // 3. Create policy snapshot to preserve policy at time of booking
+      // 3. Handle flex pass purchase if requested
+      let flexPassFee = 0;
+      let flexPassPurchased = false;
+
+      if (data.flexPassPurchased && service.flexPassEnabled) {
+        if (!service.flexPassPrice || service.flexPassPrice <= 0) {
+          throw new AppError(400, 'Flex pass is not properly configured for this service');
+        }
+        flexPassFee = service.flexPassPrice;
+        flexPassPurchased = true;
+      } else if (data.flexPassPurchased && !service.flexPassEnabled) {
+        throw new AppError(400, 'Flex pass is not available for this service');
+      }
+
+      // 4. Create policy snapshot to preserve policy at time of booking
       const policySnapshot = createPolicySnapshot(service);
       console.log(`Policy snapshot created for booking - service: ${service.id}, version: ${service.updatedAt.toISOString()}`);
 
-      // 4. Create payment intent
+      // 5. Create payment intent with flex pass if applicable
       const paymentIntent = await createPaymentIntent({
         amount: validatedData.depositAmount,
         connectedAccountId: service.user.stripeAccountId,
+        flexPassFee: flexPassPurchased ? flexPassFee : undefined,
+        flexPassPlatformSharePercent: flexPassPurchased ? service.flexPassRevenueSharePercent : undefined,
         metadata: {
           serviceId: service.id,
           serviceName: service.name,
           customerEmail: validatedData.customerEmail,
           customerName: validatedData.customerName,
+          ...(flexPassPurchased && {
+            flexPassPurchased: 'true',
+            flexPassFee: flexPassFee.toString(),
+          }),
         },
       });
 
-      // 5. Create booking with payment intent ID and policy snapshot
+      console.log(`Payment intent created - ${flexPassPurchased ? 'WITH' : 'WITHOUT'} flex pass`);
+      if (flexPassPurchased) {
+        console.log(`Flex pass fee: ${flexPassFee / 100} (platform ${service.flexPassRevenueSharePercent}%)`);
+      }
+
+      // 6. Create booking with payment intent ID, policy snapshot, and flex pass info
       const [newBooking] = await tx
         .insert(bookings)
         .values({
@@ -194,6 +219,8 @@ export class BookingsService {
           stripePaymentIntentId: paymentIntent.id,
           bookingDate,
           policySnapshotJson: policySnapshot as any, // Store policy snapshot as JSONB
+          flexPassPurchased,
+          flexPassFee: flexPassPurchased ? flexPassFee : null,
         })
         .returning();
 
