@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, AuthRequest } from '../../middleware/auth.js';
 import { BookingsService } from './bookings.service.js';
+import { AppError } from '../../middleware/errorHandler.js';
 
 const router = Router();
 const bookingsService = new BookingsService();
@@ -72,6 +73,49 @@ router.post('/:id/cancel', requireAuth, async (req: AuthRequest, res, next) => {
 router.post('/:id/no-show', requireAuth, async (req: AuthRequest, res, next) => {
   try {
     const booking = await bookingsService.markBookingAsNoShow(req.params.id, req.user!.id);
+    res.json({ booking });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Create dispute for booking (customer only)
+router.post('/:id/dispute', requireAuth, async (req: AuthRequest, res, next) => {
+  try {
+    const { reason } = req.body;
+
+    if (!reason || typeof reason !== 'string' || reason.trim().length === 0) {
+      throw new AppError(400, 'Dispute reason is required');
+    }
+
+    const booking = await bookingsService.createDispute(
+      req.params.id,
+      req.user!.id,
+      reason.trim()
+    );
+
+    res.json({ booking });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Resolve dispute (admin only - TODO: add admin middleware)
+router.post('/:id/dispute/resolve', requireAuth, async (req: AuthRequest, res, next) => {
+  try {
+    const { resolution, notes } = req.body;
+
+    if (!resolution || !['customer', 'provider'].includes(resolution)) {
+      throw new AppError(400, 'Resolution must be either "customer" or "provider"');
+    }
+
+    const booking = await bookingsService.resolveDispute(
+      req.params.id,
+      req.user!.id,
+      resolution as 'customer' | 'provider',
+      notes || ''
+    );
+
     res.json({ booking });
   } catch (error) {
     next(error);

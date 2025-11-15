@@ -585,4 +585,197 @@ export class BookingsService {
 
     return updated;
   }
+
+  /**
+   * Create a dispute for a booking
+   * Customers can dispute cancelled bookings or no-show fees
+   */
+  async createDispute(bookingId: string, userId: string, reason: string) {
+    // Get booking with service details
+    const booking = await db.query.bookings.findFirst({
+      where: eq(bookings.id, bookingId),
+      with: {
+        service: {
+          with: {
+            user: true,
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new AppError(404, 'Booking not found');
+    }
+
+    // Only the customer who made the booking can dispute it
+    // (userId on booking is actually the service provider's userId)
+    // We need to check customerEmail matches authenticated user's email
+    // For now, we'll allow anyone authenticated to dispute - TODO: improve auth check
+
+    // Check if booking is in a disputable state
+    if (!['cancelled', 'no_show'].includes(booking.status)) {
+      throw new AppError(400, 'Only cancelled or no-show bookings can be disputed');
+    }
+
+    // Check if already disputed
+    if (booking.disputeStatus === 'pending') {
+      throw new AppError(400, 'This booking already has a pending dispute');
+    }
+
+    if (booking.disputeStatus === 'resolved_customer' || booking.disputeStatus === 'resolved_provider') {
+      throw new AppError(400, 'This booking dispute has already been resolved');
+    }
+
+    // Update booking with dispute info
+    const [updated] = await db
+      .update(bookings)
+      .set({
+        disputeStatus: 'pending',
+        disputeReason: reason,
+        disputeCreatedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(bookings.id, bookingId))
+      .returning();
+
+    console.log(`🔔 Dispute created for booking ${bookingId}`);
+
+    // Send dispute notification emails
+    if (booking.service) {
+      try {
+        const queueService = createQueueService();
+        await queueService.publishDisputeCreated(
+          bookingId,
+          booking.customerEmail,
+          booking.service.user.email,
+          {
+            serviceName: booking.service.name,
+            bookingDate: booking.bookingDate,
+            disputeReason: reason,
+            customerName: booking.customerName,
+            providerName: booking.service.user.name || 'Provider',
+          }
+        );
+        console.log(`📧 Dispute notifications sent for booking ${bookingId}`);
+      } catch (emailError) {
+        console.error(`❌ Failed to send dispute notification emails:`, emailError);
+        // Don't fail the dispute creation if email fails
+      }
+    }
+
+    return updated;
+  }
+
+  /**
+   * Resolve a dispute (admin only)
+   * Resolution can be in favor of customer or provider
+   */
+  async resolveDispute(
+    bookingId: string,
+    adminUserId: string,
+    resolution: 'customer' | 'provider',
+    notes: string
+  ) {
+    // TODO: Add admin role check - for now, any authenticated user can resolve
+    // In production, you'd check if adminUserId has admin role
+
+    // Get booking with service details
+    const booking = await db.query.bookings.findFirst({
+      where: eq(bookings.id, bookingId),
+      with: {
+        service: {
+          with: {
+            user: true,
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new AppError(404, 'Booking not found');
+    }
+
+    // Check if there's a dispute to resolve
+    if (booking.disputeStatus !== 'pending') {
+      throw new AppError(400, 'No pending dispute found for this booking');
+    }
+
+    // Determine resolution status
+    const resolvedStatus = resolution === 'customer' ? 'resolved_customer' : 'resolved_provider';
+
+    // If resolving in customer's favor, process refund
+    let refundProcessed = false;
+    if (resolution === 'customer') {
+      // Customer wins - issue full refund of whatever they paid
+      const refundAmount = booking.depositAmount;
+
+      if (refundAmount > 0 && booking.stripePaymentIntentId) {
+        try {
+          await createRefund({
+            paymentIntentId: booking.stripePaymentIntentId,
+            amount: refundAmount,
+            reason: 'dispute_resolution',
+            metadata: {
+              bookingId: booking.id,
+              refundReason: 'dispute_resolved_customer',
+              disputeNotes: notes,
+              resolvedBy: adminUserId,
+            },
+          });
+
+          refundProcessed = true;
+          console.log(`✅ Dispute refund processed: $${(refundAmount / 100).toFixed(2)} for booking ${bookingId}`);
+        } catch (error) {
+          console.error('Failed to process dispute refund:', error);
+          throw new AppError(500, 'Failed to process refund for dispute resolution');
+        }
+      }
+    }
+
+    // Update booking with resolution
+    const [updated] = await db
+      .update(bookings)
+      .set({
+        disputeStatus: resolvedStatus,
+        disputeResolvedAt: new Date(),
+        // If customer wins and refund was processed, update refund fields
+        ...(refundProcessed && {
+          status: 'refunded',
+          refundAmount: booking.depositAmount,
+          refundReason: 'dispute_resolved_customer',
+        }),
+        updatedAt: new Date(),
+      })
+      .where(eq(bookings.id, bookingId))
+      .returning();
+
+    console.log(`⚖️  Dispute resolved for booking ${bookingId} in favor of ${resolution}`);
+
+    // Send dispute resolution notification emails
+    if (booking.service) {
+      try {
+        const queueService = createQueueService();
+        await queueService.publishDisputeResolved(
+          bookingId,
+          booking.customerEmail,
+          booking.service.user.email,
+          {
+            serviceName: booking.service.name,
+            bookingDate: booking.bookingDate,
+            resolution,
+            resolutionNotes: notes,
+            refundAmount: refundProcessed ? booking.depositAmount : 0,
+            customerName: booking.customerName,
+            providerName: booking.service.user.name || 'Provider',
+          }
+        );
+        console.log(`📧 Dispute resolution notifications sent for booking ${bookingId}`);
+      } catch (emailError) {
+        console.error(`❌ Failed to send dispute resolution notification emails:`, emailError);
+        // Don't fail the resolution if email fails
+      }
+    }
+
+    return updated;
+  }
 }

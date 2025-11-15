@@ -11,6 +11,8 @@ export const QUEUES = {
   BOOKING_COMPLETIONS: 'booking_completions',
   NO_SHOW_NOTIFICATIONS: 'no_show_notifications',
   REFUND_NOTIFICATIONS: 'refund_notifications',
+  DISPUTE_CREATED: 'dispute_created',
+  DISPUTE_RESOLVED: 'dispute_resolved',
   PAYMENT_FAILURES: 'payment_failures',
   STRIPE_WEBHOOKS: 'stripe_webhooks',
   AUTH_EMAILS: 'auth_emails', // Auth-related emails (welcome, verification, password reset)
@@ -269,6 +271,50 @@ export class QueueService {
     }
   ): Promise<void> {
     await this.publish(QUEUES.BOOKING_COMPLETIONS, {
+      bookingId,
+      customerEmail,
+      providerEmail,
+      details,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  async publishDisputeCreated(
+    bookingId: string,
+    customerEmail: string,
+    providerEmail: string,
+    details: {
+      serviceName: string;
+      bookingDate: Date;
+      disputeReason: string;
+      customerName: string;
+      providerName: string;
+    }
+  ): Promise<void> {
+    await this.publish(QUEUES.DISPUTE_CREATED, {
+      bookingId,
+      customerEmail,
+      providerEmail,
+      details,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  async publishDisputeResolved(
+    bookingId: string,
+    customerEmail: string,
+    providerEmail: string,
+    details: {
+      serviceName: string;
+      bookingDate: Date;
+      resolution: 'customer' | 'provider';
+      resolutionNotes: string;
+      refundAmount: number;
+      customerName: string;
+      providerName: string;
+    }
+  ): Promise<void> {
+    await this.publish(QUEUES.DISPUTE_RESOLVED, {
       bookingId,
       customerEmail,
       providerEmail,
