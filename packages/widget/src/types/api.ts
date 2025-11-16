@@ -5,7 +5,7 @@
  * Any manual changes will be overwritten on the next sync.
  *
  * Source: packages/api/openapi.json
- * Generated: 2025-11-16T03:18:21.121Z
+ * Generated: 2025-11-16T03:43:32.865Z
  *
  * To update this file, run:
  *   npm run sync-types
@@ -51,6 +51,8 @@ export interface paths {
                 businessAddress: string | null;
                 businessPhone: string | null;
                 businessWebsite: string | null;
+                industryVertical: string | null;
+                industrySubcategory: string | null;
                 createdAt: string;
                 updatedAt: string;
               };
@@ -80,6 +82,8 @@ export interface paths {
             password: string;
             name: string;
             slug: string;
+            industryVertical?: string;
+            industrySubcategory?: string;
           };
         };
       };
@@ -102,6 +106,8 @@ export interface paths {
                 businessAddress: string | null;
                 businessPhone: string | null;
                 businessWebsite: string | null;
+                industryVertical: string | null;
+                industrySubcategory: string | null;
                 createdAt: string;
                 updatedAt: string;
               };
@@ -168,6 +174,8 @@ export interface paths {
                 businessAddress: string | null;
                 businessPhone: string | null;
                 businessWebsite: string | null;
+                industryVertical: string | null;
+                industrySubcategory: string | null;
                 createdAt: string;
                 updatedAt: string;
               };
@@ -219,6 +227,8 @@ export interface paths {
                 businessAddress: string | null;
                 businessPhone: string | null;
                 businessWebsite: string | null;
+                industryVertical: string | null;
+                industrySubcategory: string | null;
                 createdAt: string;
                 updatedAt: string;
               };
@@ -1059,6 +1069,8 @@ export interface components {
       businessAddress: string | null;
       businessPhone: string | null;
       businessWebsite: string | null;
+      industryVertical: string | null;
+      industrySubcategory: string | null;
       createdAt: string;
       updatedAt: string;
     };

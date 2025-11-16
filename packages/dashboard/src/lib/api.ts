@@ -52,7 +52,14 @@ export class ApiClient {
     });
   }
 
-  async signup(data: { email: string; password: string; name: string; slug: string }): Promise<{ user: User }> {
+  async signup(data: {
+    email: string;
+    password: string;
+    name: string;
+    slug: string;
+    industryVertical?: string;
+    industrySubcategory?: string;
+  }): Promise<{ user: User }> {
     return this.request<{ user: User }>('/api/auth/register', {
       method: 'POST',
       data,

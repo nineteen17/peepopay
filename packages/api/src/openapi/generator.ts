@@ -114,6 +114,8 @@ const userSchema = z.object({
   businessAddress: z.string().nullable(),
   businessPhone: z.string().nullable(),
   businessWebsite: z.string().nullable(),
+  industryVertical: z.string().nullable(),
+  industrySubcategory: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 }).openapi({ description: 'User entity' });
@@ -190,6 +192,8 @@ registry.registerPath({
             password: z.string().min(6),
             name: z.string().min(2).max(100),
             slug: z.string().min(3).max(50),
+            industryVertical: z.string().optional(),
+            industrySubcategory: z.string().optional(),
           }),
         },
       },

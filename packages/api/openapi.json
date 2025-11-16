@@ -449,6 +449,14 @@
             "type": "string",
             "nullable": true
           },
+          "industryVertical": {
+            "type": "string",
+            "nullable": true
+          },
+          "industrySubcategory": {
+            "type": "string",
+            "nullable": true
+          },
           "createdAt": {
             "type": "string"
           },
@@ -467,6 +475,8 @@
           "businessAddress",
           "businessPhone",
           "businessWebsite",
+          "industryVertical",
+          "industrySubcategory",
           "createdAt",
           "updatedAt"
         ],
@@ -568,6 +578,14 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "industryVertical": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "industrySubcategory": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "createdAt": {
                           "type": "string"
                         },
@@ -586,6 +604,8 @@
                         "businessAddress",
                         "businessPhone",
                         "businessWebsite",
+                        "industryVertical",
+                        "industrySubcategory",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -653,6 +673,12 @@
                     "type": "string",
                     "minLength": 3,
                     "maxLength": 50
+                  },
+                  "industryVertical": {
+                    "type": "string"
+                  },
+                  "industrySubcategory": {
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -713,6 +739,14 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "industryVertical": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "industrySubcategory": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "createdAt": {
                           "type": "string"
                         },
@@ -731,6 +765,8 @@
                         "businessAddress",
                         "businessPhone",
                         "businessWebsite",
+                        "industryVertical",
+                        "industrySubcategory",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -874,6 +910,14 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "industryVertical": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "industrySubcategory": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "createdAt": {
                           "type": "string"
                         },
@@ -892,6 +936,8 @@
                         "businessAddress",
                         "businessPhone",
                         "businessWebsite",
+                        "industryVertical",
+                        "industrySubcategory",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -1024,6 +1070,14 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "industryVertical": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "industrySubcategory": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "createdAt": {
                           "type": "string"
                         },
@@ -1042,6 +1096,8 @@
                         "businessAddress",
                         "businessPhone",
                         "businessWebsite",
+                        "industryVertical",
+                        "industrySubcategory",
                         "createdAt",
                         "updatedAt"
                       ],

@@ -18,6 +18,8 @@ export default function SignupPage() {
     email: '',
     password: '',
     slug: '',
+    industryVertical: 'general' as const,
+    industrySubcategory: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -125,6 +127,41 @@ export default function SignupPage() {
               />
               <p className="text-xs text-muted-foreground">
                 Minimum 8 characters
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="industryVertical">What type of business are you?</Label>
+              <select
+                id="industryVertical"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={formData.industryVertical}
+                onChange={(e) => setFormData({ ...formData, industryVertical: e.target.value as any })}
+              >
+                <option value="general">General / Other</option>
+                <option value="trade">Trade Services (plumber, electrician, etc.)</option>
+                <option value="medical">Medical & Health (dentist, doctor, physio, etc.)</option>
+                <option value="legal">Legal Services (lawyer, notary, etc.)</option>
+                <option value="automotive">Automotive (mechanic, detailer, etc.)</option>
+                <option value="beauty">Beauty & Wellness (barber, salon, spa, etc.)</option>
+                <option value="consulting">Professional Services (consultant, accountant, etc.)</option>
+              </select>
+              <p className="text-xs text-muted-foreground">
+                This helps us provide you with relevant features
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="industrySubcategory">Specialty (optional)</Label>
+              <Input
+                id="industrySubcategory"
+                type="text"
+                placeholder="e.g., plumber, dentist, lawyer"
+                value={formData.industrySubcategory}
+                onChange={(e) => setFormData({ ...formData, industrySubcategory: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Be specific about your profession or service type
               </p>
             </div>
 

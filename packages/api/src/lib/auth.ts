@@ -69,6 +69,24 @@ export const auth: any = betterAuth({
     cookiePrefix: 'peepopay',
   },
 
+  // Additional user fields configuration
+  user: {
+    additionalFields: {
+      slug: {
+        type: 'string',
+        required: false,
+      },
+      industryVertical: {
+        type: 'string',
+        required: false,
+      },
+      industrySubcategory: {
+        type: 'string',
+        required: false,
+      },
+    },
+  },
+
   // Hooks for additional email notifications
   hooks: {
     after: [

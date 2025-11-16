@@ -551,51 +551,57 @@
 
 ---
 
-## Phase 9: Industry Vertical System (Week 6)
+## Phase 9: Industry Vertical System (Week 6) ✅
 
-### 9.1 Update Onboarding Flow
+**Note**: Simplified approach - Industry fields for analytics only, no vertical-specific defaults. Users configure their own policies via dashboard.
 
-- [ ] **Update**: `packages/dashboard/src/app/onboarding/page.tsx`
-  - [ ] Add step: "What type of business are you?"
-  - [ ] Dropdown with options:
-    - [ ] General / Other
-    - [ ] Trade Services (plumber, electrician, etc.)
-    - [ ] Medical & Health (dentist, doctor, physio, etc.)
-    - [ ] Legal Services (lawyer, notary, etc.)
-    - [ ] Automotive (mechanic, detailer, etc.)
-    - [ ] Beauty & Wellness (barber, salon, spa, etc.)
-    - [ ] Professional Services (consultant, accountant, etc.)
-  - [ ] Free text input for subcategory
-  - [ ] Send to API on submission
+### 9.1 Update Signup Flow ✅
 
-- [ ] **Update API**: Onboarding endpoint
-  - [ ] Accept `industry_vertical` and `industry_subcategory`
-  - [ ] Validate enum values
-  - [ ] Store in database
-  - [ ] Return user with industry info
+- [x] **Update**: `packages/dashboard/src/app/auth/signup/page.tsx`
+  - [x] Add industry vertical dropdown with 7 business categories:
+    - [x] General / Other
+    - [x] Trade Services (plumber, electrician, etc.)
+    - [x] Medical & Health (dentist, doctor, physio, etc.)
+    - [x] Legal Services (lawyer, notary, etc.)
+    - [x] Automotive (mechanic, detailer, etc.)
+    - [x] Beauty & Wellness (barber, salon, spa, etc.)
+    - [x] Professional Services (consultant, accountant, etc.)
+  - [x] Add optional subcategory text input for specific profession
+  - [x] Update formData state to include industryVertical and industrySubcategory
+  - [x] Send to API on signup submission
 
-### 9.2 Create Vertical Defaults Module
+### 9.2 Update API to Accept Industry Fields ✅
 
-- [ ] **Create**: `packages/api/src/lib/verticalDefaults.ts`
-  - [ ] Type: `VerticalPolicyDefaults` interface
-  - [ ] Function: `getDefaultPolicyForVertical(vertical): VerticalPolicyDefaults`
-  - [ ] Define defaults for each vertical:
-    - [ ] Trade: 24hr window, $30 late fee, $50 no-show, flex pass $5
-    - [ ] Medical: 48hr window, $40 late fee, $80 no-show, flex pass $10
-    - [ ] Legal: 72hr window, $100 late fee, $200 no-show, flex pass $20
-    - [ ] Automotive: 24hr window, $25 late fee, $40 no-show, flex pass $5
-    - [ ] Beauty: 12hr window, $15 late fee, $30 no-show, flex pass $3
-    - [ ] Consulting: 48hr window, $50 late fee, $100 no-show, flex pass $10
-    - [ ] General: 24hr window, $20 late fee, $40 no-show, flex pass $5
+- [x] **Update**: `packages/api/src/lib/auth.ts`
+  - [x] Configure Better Auth to accept additional user fields
+  - [x] Add `additionalFields` configuration for slug, industryVertical, industrySubcategory
+  - [x] Fields stored automatically via Drizzle adapter
 
-### 9.3 Apply Defaults on Service Creation
+- [x] **Update**: `packages/dashboard/src/lib/api.ts`
+  - [x] Update signup method signature to accept industryVertical and industrySubcategory
+  - [x] Pass fields through to `/api/auth/register` endpoint
 
-- [ ] **Update**: `packages/api/src/modules/services/services.service.ts`
-  - [ ] When creating first service for user:
-    - [ ] Get user's industry_vertical
-    - [ ] Call `getDefaultPolicyForVertical()`
-    - [ ] Pre-fill policy fields with defaults
-    - [ ] User can override during creation or later
+### 9.3 Update OpenAPI Spec and Type Sync ✅
+
+- [x] **Update**: `packages/api/src/openapi/generator.ts`
+  - [x] Add industryVertical and industrySubcategory to userSchema
+  - [x] Add optional industryVertical and industrySubcategory to register endpoint request body
+  - [x] Generate updated OpenAPI spec with industry fields
+
+- [x] **Sync Types**: Run `npm run sync-types`
+  - [x] Regenerated TypeScript types from OpenAPI spec
+  - [x] Updated Dashboard types at `packages/dashboard/src/types/api.ts`
+  - [x] Updated Widget types at `packages/widget/src/types/api.ts`
+  - [x] All TypeScript compilation successful
+
+**Git Commits:**
+- feat(api): Add industry vertical fields to user signup
+
+**Notes:**
+- Industry vertical fields are for analytics and data collection only
+- No vertical-specific policy defaults implemented (users configure their own policies)
+- Simplified approach focuses on core functionality over UX polish
+- Database schema already had industry fields from Phase 2.4
 
 ---
 
