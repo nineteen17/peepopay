@@ -20,6 +20,12 @@ interface BookingReminderEmailProps {
   bookingDate: string;
   duration?: number;
   price?: number;
+  // Policy information
+  cancellationDeadline?: string;
+  lateCancellationFee?: number;
+  noShowFee?: number;
+  hasFlexPass?: boolean;
+  freeCancellationHours?: number;
 }
 
 export const BookingReminderEmail = ({
@@ -29,6 +35,11 @@ export const BookingReminderEmail = ({
   bookingDate,
   duration,
   price,
+  cancellationDeadline,
+  lateCancellationFee,
+  noShowFee,
+  hasFlexPass = false,
+  freeCancellationHours,
 }: BookingReminderEmailProps) => {
   const formattedDate = new Date(bookingDate).toLocaleString('en-US', {
     weekday: 'long',
@@ -121,6 +132,64 @@ export const BookingReminderEmail = ({
             </Button>
           </Section>
 
+          {/* Policy Information Section */}
+          {(cancellationDeadline || lateCancellationFee !== undefined || hasFlexPass) && (
+            <>
+              <Hr style={hr} />
+              <Section style={policySection}>
+                <Heading as="h2" style={policyHeading}>
+                  ⚠️ Cancellation Policy
+                </Heading>
+
+                {hasFlexPass ? (
+                  <Section style={flexPassBox}>
+                    <Text style={flexPassText}>
+                      ✅ <strong>Flex Pass Active</strong> - Full refund guaranteed if you need to cancel!
+                    </Text>
+                  </Section>
+                ) : (
+                  <>
+                    {cancellationDeadline && (
+                      <Text style={policyText}>
+                        <strong>Free Cancellation Deadline:</strong>
+                        <br />
+                        {cancellationDeadline}
+                      </Text>
+                    )}
+
+                    {freeCancellationHours && !cancellationDeadline && (
+                      <Text style={policyText}>
+                        <strong>Free Cancellation Window:</strong>
+                        <br />
+                        Cancel at least {freeCancellationHours} hours before your booking for a full refund
+                      </Text>
+                    )}
+
+                    {lateCancellationFee !== undefined && lateCancellationFee > 0 && (
+                      <Text style={policyWarning}>
+                        <strong>Late Cancellation Fee:</strong> ${(lateCancellationFee / 100).toFixed(2)}
+                        <br />
+                        <span style={policySubtext}>
+                          Applies if you cancel after the free cancellation deadline
+                        </span>
+                      </Text>
+                    )}
+
+                    {noShowFee !== undefined && noShowFee > 0 && (
+                      <Text style={policyWarning}>
+                        <strong>No-Show Fee:</strong> ${(noShowFee / 100).toFixed(2)}
+                        <br />
+                        <span style={policySubtext}>
+                          Charged if you don't show up and don't cancel
+                        </span>
+                      </Text>
+                    )}
+                  </>
+                )}
+              </Section>
+            </>
+          )}
+
           <Hr style={hr} />
 
           <Text style={footer}>
@@ -128,7 +197,16 @@ export const BookingReminderEmail = ({
           </Text>
           <ul style={listStyle}>
             <li style={listItem}>Please arrive on time for your appointment</li>
-            <li style={listItem}>If you need to cancel, please do so at least 24 hours in advance</li>
+            {!hasFlexPass && cancellationDeadline && (
+              <li style={listItem}>
+                Cancel before <strong>{cancellationDeadline}</strong> to avoid fees
+              </li>
+            )}
+            {!hasFlexPass && !cancellationDeadline && freeCancellationHours && (
+              <li style={listItem}>
+                Cancel at least <strong>{freeCancellationHours} hours in advance</strong> to avoid fees
+              </li>
+            )}
             <li style={listItem}>Save this email for your records</li>
           </ul>
 
@@ -276,4 +354,58 @@ const footer = {
   fontSize: '13px',
   lineHeight: '20px',
   margin: '12px 40px',
+};
+
+const policySection = {
+  margin: '24px 40px',
+  padding: '20px',
+  backgroundColor: '#fffbeb',
+  border: '2px solid #fbbf24',
+  borderRadius: '8px',
+};
+
+const policyHeading = {
+  color: '#92400e',
+  fontSize: '18px',
+  fontWeight: 'bold',
+  margin: '0 0 16px',
+};
+
+const policyText = {
+  color: '#78350f',
+  fontSize: '14px',
+  lineHeight: '20px',
+  margin: '12px 0',
+};
+
+const policyWarning = {
+  color: '#991b1b',
+  fontSize: '14px',
+  lineHeight: '20px',
+  margin: '12px 0',
+  padding: '12px',
+  backgroundColor: '#fef2f2',
+  borderLeft: '4px solid #dc2626',
+  borderRadius: '4px',
+};
+
+const policySubtext = {
+  color: '#6b7280',
+  fontSize: '12px',
+  fontStyle: 'italic' as const,
+};
+
+const flexPassBox = {
+  padding: '16px',
+  backgroundColor: '#f0fdf4',
+  border: '2px solid #22c55e',
+  borderRadius: '8px',
+  textAlign: 'center' as const,
+};
+
+const flexPassText = {
+  color: '#166534',
+  fontSize: '16px',
+  lineHeight: '24px',
+  margin: '0',
 };

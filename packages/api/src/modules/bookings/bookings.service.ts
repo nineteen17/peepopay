@@ -424,6 +424,10 @@ export class BookingsService {
           providerName: booking.service.user.name,
           bookingDate: booking.bookingDate,
           refundAmount: refundResult.refundAmount > 0 ? refundResult.refundAmount : undefined,
+          feeCharged: refundResult.feeCharged,
+          policyExplanation: refundResult.explanation,
+          hoursUntilBooking: refundResult.hoursUntilBooking,
+          cancellationReason: refundResult.reason,
         }
       );
     }

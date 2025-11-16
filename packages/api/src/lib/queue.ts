@@ -165,6 +165,10 @@ export class QueueService {
       providerName: string;
       bookingDate: Date;
       refundAmount?: number;
+      feeCharged?: number;
+      policyExplanation?: string;
+      hoursUntilBooking?: number;
+      cancellationReason?: string;
     }
   ): Promise<void> {
     await this.publish(QUEUES.BOOKING_CANCELLATIONS, {

@@ -134,6 +134,10 @@ async function handleBookingCancellation(message: any) {
         recipientType: 'customer',
         refundAmount: details.refundAmount,
         refundTimeframe: '5-10 business days',
+        feeCharged: details.feeCharged,
+        policyExplanation: details.policyExplanation,
+        hoursUntilBooking: details.hoursUntilBooking,
+        cancellationReason: details.cancellationReason,
       })
     );
 
@@ -564,7 +568,53 @@ async function handleBookingReminder(job: Job) {
   console.log(`⏰ Processing booking reminder for ${bookingId}`);
 
   try {
-    // Render the booking reminder email template
+    let cancellationDeadline: string | undefined;
+    let lateCancellationFee: number | undefined;
+    let noShowFee: number | undefined;
+    let hasFlexPass = false;
+    let freeCancellationHours: number | undefined;
+
+    try {
+      // Fetch booking directly from database to get policy snapshot
+      const { db } = await import('./db/index.js');
+      const { bookings } = await import('./db/schema/index.js');
+      const { eq } = await import('drizzle-orm');
+
+      const [booking] = await db
+        .select()
+        .from(bookings)
+        .where(eq(bookings.id, bookingId))
+        .limit(1);
+
+      if (booking && booking.policySnapshotJson) {
+        const policy = typeof booking.policySnapshotJson === 'string'
+          ? JSON.parse(booking.policySnapshotJson)
+          : booking.policySnapshotJson;
+
+        // Calculate cancellation deadline
+        if (policy.cancellationWindowHours) {
+          const bookingTime = new Date(bookingDate);
+          const deadline = new Date(bookingTime.getTime() - (policy.cancellationWindowHours * 60 * 60 * 1000));
+          cancellationDeadline = deadline.toLocaleString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+          freeCancellationHours = policy.cancellationWindowHours;
+        }
+
+        lateCancellationFee = policy.lateCancellationFee || undefined;
+        noShowFee = policy.noShowFee || undefined;
+        hasFlexPass = booking.flexPassPurchased || false;
+      }
+    } catch (err) {
+      console.warn(`⚠️  Could not fetch policy info for booking ${bookingId}, sending basic reminder`);
+    }
+
+    // Render the booking reminder email template with policy info
     const html = render(
       BookingReminderEmail({
         bookingId,
@@ -573,6 +623,11 @@ async function handleBookingReminder(job: Job) {
         bookingDate,
         duration,
         price,
+        cancellationDeadline,
+        lateCancellationFee,
+        noShowFee,
+        hasFlexPass,
+        freeCancellationHours,
       })
     );
 

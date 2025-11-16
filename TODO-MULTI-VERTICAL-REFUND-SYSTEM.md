@@ -655,50 +655,64 @@
 
 ---
 
-## Phase 11: Email Notifications - Policy Updates (Week 7)
+## Phase 11: Email Notifications - Policy Updates (Week 7) ✅
 
-### 11.1 Create Refund Breakdown Email
+**Note**: Enhanced existing email templates to include policy information instead of creating new ones.
 
-- [ ] **Create**: `packages/api/src/emails/cancellation-with-refund.tsx`
-  - [ ] Show booking details
-  - [ ] Show refund amount
-  - [ ] Show any fees charged
-  - [ ] Explain policy reason
-  - [ ] Show refund timeline (5-10 days)
-  - [ ] Include dispute link if applicable
+### 11.1 Enhanced Refund Breakdown Email ✅
 
-### 11.2 Create No-Show Notification Email
+- [x] **Updated**: `packages/api/src/emails/booking-cancellation.tsx`
+  - [x] Added fee breakdown table showing original deposit, cancellation fee, and refund amount
+  - [x] Added policy explanation box with detailed reason for fees
+  - [x] Shows hours until booking when cancelled
+  - [x] Shows refund timeline (5-10 days)
+  - [x] Includes dispute suggestion for partial/no refunds
+  - [x] Separate display for full refunds vs partial refunds vs no refunds
 
-- [ ] **Create**: `packages/api/src/emails/no-show-fee-charged.tsx`
-  - [ ] Notify customer of no-show
-  - [ ] Show fee charged
-  - [ ] Explain policy
-  - [ ] Provide dispute option
-  - [ ] Show payment breakdown
+### 11.2 No-Show Notification Email ✅
 
-### 11.3 Create Policy Reminder Email
+- [x] **Already exists**: `packages/api/src/emails/no-show-notification.tsx`
+  - [x] Notifies customer of no-show
+  - [x] Shows fee charged
+  - [x] Explains policy
+  - [x] Provides support contact option
+  - [x] Shows payment breakdown
 
-- [ ] **Create**: `packages/api/src/emails/policy-reminder.tsx`
-  - [ ] Remind customer 24hrs before booking
-  - [ ] Show cancellation deadline
-  - [ ] Show fee if they cancel late
-  - [ ] Include flex pass status if purchased
-  - [ ] Include link to cancel/reschedule
+### 11.3 Policy-Aware Booking Reminder Email ✅
 
-### 11.4 Update Queue and Worker
+- [x] **Updated**: `packages/api/src/emails/booking-reminder.tsx`
+  - [x] Shows dynamic cancellation deadline calculated from policy
+  - [x] Shows specific late cancellation fee from policy
+  - [x] Shows no-show fee from policy
+  - [x] Highlights if Flex Pass is active (full refund guaranteed)
+  - [x] Includes link to view/cancel booking
+  - [x] Dynamic helpful tips based on policy
 
-- [ ] **Update**: `packages/api/src/lib/queue.ts`
-  - [ ] Add `publishPolicyReminder()`
-  - [ ] Add `publishNoShowNotification()`
+### 11.4 Update Queue and Worker ✅
 
-- [ ] **Update**: `packages/api/src/worker.ts`
-  - [ ] Add worker for policy reminder emails
-  - [ ] Schedule reminder jobs 24hrs before booking
-  - [ ] Handle no-show fee notifications
+- [x] **Updated**: `packages/api/src/lib/queue.ts`
+  - [x] Updated `publishBookingCancellation()` to accept policy fields (feeCharged, policyExplanation, hoursUntilBooking)
+  - [x] No-show notifications already implemented via `publishNoShowNotification()`
 
-- [ ] **Update Booking Confirmation**
-  - [ ] Schedule policy reminder when booking confirmed
-  - [ ] Use Bull queue delay feature
+- [x] **Updated**: `packages/api/src/worker.ts`
+  - [x] Enhanced `handleBookingCancellation()` to pass policy info to email template
+  - [x] Enhanced `handleBookingReminder()` to fetch booking policy snapshot and calculate deadline
+  - [x] Worker fetches policy information at reminder time for accuracy
+  - [x] Graceful fallback if policy info unavailable
+
+- [x] **Booking Confirmation**
+  - [x] Booking reminder already scheduled 24hrs before booking (implemented in Phase 6)
+  - [x] Uses Bull queue delay feature
+
+**Git Commits:**
+- feat(api): Implement Phase 11 - Enhanced Email Notifications with Policy Details
+
+**Notes:**
+- Enhanced existing emails rather than creating duplicates
+- Policy information dynamically calculated at email send time
+- Booking reminder fetches latest policy snapshot for accuracy
+- Cancellation email shows detailed fee breakdown and explanation
+- All emails now policy-aware and customer-friendly
 
 ---
 

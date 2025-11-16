@@ -22,6 +22,10 @@ interface BookingCancellationEmailProps {
   recipientType: 'customer' | 'provider';
   refundAmount?: number;
   refundTimeframe?: string;
+  feeCharged?: number;
+  policyExplanation?: string;
+  hoursUntilBooking?: number;
+  cancellationReason?: string;
 }
 
 export const BookingCancellationEmail = ({
@@ -35,8 +39,13 @@ export const BookingCancellationEmail = ({
   recipientType,
   refundAmount,
   refundTimeframe = '5-10 business days',
+  feeCharged = 0,
+  policyExplanation,
+  hoursUntilBooking,
+  cancellationReason,
 }: BookingCancellationEmailProps) => {
   const isCustomer = recipientType === 'customer';
+  const hasPartialRefund = feeCharged > 0;
 
   return (
     <Html>
@@ -96,20 +105,79 @@ export const BookingCancellationEmail = ({
             </table>
           </Section>
 
-          {isCustomer && refundAmount && refundAmount > 0 && (
+          {isCustomer && refundAmount !== undefined && (
             <Section style={refundSection}>
               <Heading as="h2" style={h2}>
-                Refund Information
+                {refundAmount > 0 ? 'Refund Information' : 'Cancellation Fee'}
               </Heading>
               <Hr style={hr} />
-              <Text style={refundText}>
-                Your deposit of <strong>${(refundAmount / 100).toFixed(2)}</strong> will be
-                refunded to your original payment method within {refundTimeframe}.
-              </Text>
-              <Text style={refundText}>
-                You will receive a separate confirmation email from Stripe once the refund has
-                been processed.
-              </Text>
+
+              {/* Fee Breakdown */}
+              {hasPartialRefund && (
+                <>
+                  <table style={breakdownTable}>
+                    <tbody>
+                      <tr>
+                        <td style={breakdownLabel}>Original Deposit:</td>
+                        <td style={breakdownValue}>${(price / 100).toFixed(2)}</td>
+                      </tr>
+                      <tr>
+                        <td style={breakdownLabel}>Cancellation Fee:</td>
+                        <td style={breakdownValueNegative}>-${(feeCharged / 100).toFixed(2)}</td>
+                      </tr>
+                      <tr style={breakdownTotal}>
+                        <td style={breakdownLabel}><strong>Refund Amount:</strong></td>
+                        <td style={breakdownValue}><strong>${(refundAmount / 100).toFixed(2)}</strong></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <Hr style={hr} />
+                </>
+              )}
+
+              {/* Policy Explanation */}
+              {policyExplanation && (
+                <>
+                  <Section style={policyBox}>
+                    <Text style={policyTitle}>📋 Policy Explanation</Text>
+                    <Text style={policyText}>{policyExplanation}</Text>
+                    {hoursUntilBooking !== undefined && (
+                      <Text style={policyText}>
+                        You cancelled <strong>{Math.round(hoursUntilBooking)} hours</strong> before your scheduled booking.
+                      </Text>
+                    )}
+                  </Section>
+                  <Hr style={hr} />
+                </>
+              )}
+
+              {/* Refund Details */}
+              {refundAmount > 0 ? (
+                <>
+                  <Text style={refundText}>
+                    {hasPartialRefund ? 'Your partial refund' : 'Your full refund'} of{' '}
+                    <strong>${(refundAmount / 100).toFixed(2)}</strong> will be processed to your
+                    original payment method within {refundTimeframe}.
+                  </Text>
+                  <Text style={refundText}>
+                    You will receive a separate confirmation email from Stripe once the refund has
+                    been processed.
+                  </Text>
+                </>
+              ) : (
+                <Text style={refundText}>
+                  Due to the cancellation policy, no refund is available for this booking.
+                  {feeCharged > 0 && ` A fee of $${(feeCharged / 100).toFixed(2)} has been retained.`}
+                </Text>
+              )}
+
+              {/* Dispute Option for Partial/No Refunds */}
+              {(hasPartialRefund || refundAmount === 0) && (
+                <Text style={disputeText}>
+                  If you believe this was charged in error or have extenuating circumstances,
+                  you may contact support to discuss your situation.
+                </Text>
+              )}
             </Section>
           )}
 
@@ -148,8 +216,12 @@ BookingCancellationEmail.PreviewProps = {
   recipientName: 'John Doe',
   bookingDate: 'November 15, 2025 at 2:00 PM',
   recipientType: 'customer',
-  refundAmount: 5000,
+  refundAmount: 4000,
   refundTimeframe: '5-10 business days',
+  feeCharged: 1000,
+  policyExplanation: 'You cancelled outside the free cancellation window. Our policy requires at least 24 hours notice for a full refund. Since you cancelled 12 hours before your booking, a late cancellation fee applies.',
+  hoursUntilBooking: 12,
+  cancellationReason: 'Late cancellation',
 } as BookingCancellationEmailProps;
 
 export default BookingCancellationEmail;
@@ -261,4 +333,70 @@ const footer = {
   margin: '16px 0',
   padding: '0 40px',
   textAlign: 'center' as const,
+};
+
+const breakdownTable = {
+  width: '100%',
+  borderCollapse: 'collapse' as const,
+  margin: '16px 0',
+  backgroundColor: '#f9fafb',
+  borderRadius: '8px',
+  padding: '16px',
+};
+
+const breakdownLabel = {
+  padding: '8px 16px',
+  color: '#666',
+  fontSize: '14px',
+  textAlign: 'left' as const,
+};
+
+const breakdownValue = {
+  padding: '8px 16px',
+  color: '#333',
+  fontSize: '14px',
+  fontWeight: '600',
+  textAlign: 'right' as const,
+};
+
+const breakdownValueNegative = {
+  padding: '8px 16px',
+  color: '#dc2626',
+  fontSize: '14px',
+  fontWeight: '600',
+  textAlign: 'right' as const,
+};
+
+const breakdownTotal = {
+  borderTop: '2px solid #e5e7eb',
+};
+
+const policyBox = {
+  backgroundColor: '#fffbeb',
+  border: '1px solid #fbbf24',
+  borderRadius: '8px',
+  padding: '16px',
+  margin: '16px 0',
+};
+
+const policyTitle = {
+  color: '#92400e',
+  fontSize: '14px',
+  fontWeight: 'bold',
+  margin: '0 0 8px',
+};
+
+const policyText = {
+  color: '#78350f',
+  fontSize: '14px',
+  lineHeight: '20px',
+  margin: '4px 0',
+};
+
+const disputeText = {
+  color: '#6b7280',
+  fontSize: '13px',
+  lineHeight: '18px',
+  margin: '16px 0 0',
+  fontStyle: 'italic' as const,
 };
