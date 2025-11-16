@@ -1,45 +1,14 @@
 # Docker Stack for PRODUCTION DEPLOYMENT (Docker Swarm)
 # Usage: docker stack deploy -c docker-stack.yml peepopay
 # Includes replicas, rolling updates, resource limits, and health checks
+#
+# IMPORTANT: This configuration uses an EXTERNAL managed database (Supabase, AWS RDS, etc.)
+# You MUST set the DATABASE_URL secret before deploying:
+#   echo "postgresql://user:password@your-db-host.supabase.co:5432/postgres?sslmode=require" | docker secret create database_url -
 
 version: '3.8'
 
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: peepopay
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - peepopay-overlay
-    secrets:
-      - postgres_password
-    deploy:
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # Redis Cache
   redis:
     image: redis:7-alpine
@@ -104,13 +73,13 @@ services:
     image: ${DOCKER_REGISTRY:-}peepopay-api:${VERSION:-latest}
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://postgres@postgres:5432/peepopay
+      - DATABASE_URL_FILE=/run/secrets/database_url
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=amqp://admin@rabbitmq:5672
     networks:
       - peepopay-overlay
     secrets:
-      - postgres_password
+      - database_url
       - rabbitmq_password
       - stripe_secret_key
       - better_auth_secret
@@ -151,13 +120,13 @@ services:
     command: ["npm", "run", "start:worker"]
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://postgres@postgres:5432/peepopay
+      - DATABASE_URL_FILE=/run/secrets/database_url
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=amqp://admin@rabbitmq:5672
     networks:
       - peepopay-overlay
     secrets:
-      - postgres_password
+      - database_url
       - rabbitmq_password
       - smtp_password
     deploy:
@@ -286,7 +255,6 @@ services:
         - "traefik.http.services.traefik.loadbalancer.server.port=8080"
 
 volumes:
-  postgres_data:
   redis_data:
   rabbitmq_data:
   traefik_certs:
@@ -297,7 +265,7 @@ networks:
     attachable: true
 
 secrets:
-  postgres_password:
+  database_url:
     external: true
   rabbitmq_password:
     external: true

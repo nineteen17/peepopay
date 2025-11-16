@@ -1,6 +1,28 @@
 import dotenv from 'dotenv';
+import { readFileSync } from 'fs';
 
 dotenv.config();
+
+/**
+ * Helper function to read environment variables that may be stored in files (Docker secrets)
+ * If an env var with _FILE suffix exists, read the value from that file path
+ * Otherwise, return the direct env var value
+ */
+function getEnvOrFile(key: string): string | undefined {
+  const fileKey = `${key}_FILE`;
+  const filePath = process.env[fileKey];
+
+  if (filePath) {
+    try {
+      return readFileSync(filePath, 'utf-8').trim();
+    } catch (error) {
+      console.error(`Failed to read secret file ${filePath} for ${key}:`, error);
+      throw error;
+    }
+  }
+
+  return process.env[key];
+}
 
 export const config = {
   // App
@@ -10,26 +32,26 @@ export const config = {
   dashboardUrl: process.env.DASHBOARD_URL || 'http://localhost:3000',
 
   // Database
-  databaseUrl: process.env.DATABASE_URL!,
+  databaseUrl: getEnvOrFile('DATABASE_URL')!,
 
   // JWT
-  jwtSecret: process.env.JWT_SECRET!,
+  jwtSecret: getEnvOrFile('JWT_SECRET')!,
 
   // Better Auth
   betterAuth: {
-    secret: process.env.BETTER_AUTH_SECRET!,
+    secret: getEnvOrFile('BETTER_AUTH_SECRET')!,
     url: process.env.BETTER_AUTH_URL || 'http://localhost:4000',
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      clientSecret: getEnvOrFile('GOOGLE_CLIENT_SECRET'),
     },
   },
 
   // Stripe
   stripe: {
-    secretKey: process.env.STRIPE_SECRET_KEY!,
+    secretKey: getEnvOrFile('STRIPE_SECRET_KEY')!,
     publishableKey: process.env.STRIPE_PUBLISHABLE_KEY!,
-    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
+    webhookSecret: getEnvOrFile('STRIPE_WEBHOOK_SECRET')!,
     clientId: process.env.STRIPE_CLIENT_ID!,
   },
 
@@ -41,7 +63,7 @@ export const config = {
 
   // Email - Resend
   email: {
-    apiKey: process.env.RESEND_API_KEY!,
+    apiKey: getEnvOrFile('RESEND_API_KEY')!,
     fromEmail: process.env.FROM_EMAIL || 'noreply@peepopay.com',
     fromName: process.env.FROM_NAME || 'PeepoPay',
   },
