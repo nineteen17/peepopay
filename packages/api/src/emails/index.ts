@@ -6,6 +6,8 @@ export { OnboardingReminderEmail } from './onboarding-reminder.js';
 export { NoShowNotificationEmail } from './no-show-notification.js';
 export { PaymentFailedEmail } from './payment-failed.js';
 export { RefundNotificationEmail } from './refund-notification.js';
+export { DisputeCreatedEmail } from './dispute-created.js';
+export { DisputeResolvedEmail } from './dispute-resolved.js';
 export { GenericNotificationEmail } from './generic-notification.js';
 export { WelcomeEmail } from './welcome-email.js';
 export { VerifyEmail } from './verify-email.js';

@@ -5,7 +5,7 @@
  * Any manual changes will be overwritten on the next sync.
  *
  * Source: packages/api/openapi.json
- * Generated: 2025-11-15T10:31:46.508Z
+ * Generated: 2025-11-16T03:18:21.121Z
  *
  * To update this file, run:
  *   npm run sync-types
@@ -285,6 +285,17 @@ export interface paths {
                   fullPrice: number | null;
                   isActive: boolean | null;
                   requiresApproval: boolean | null;
+                  cancellationWindowHours: number | null;
+                  lateCancellationFee: number | null;
+                  noShowFee: number | null;
+                  allowPartialRefunds: boolean | null;
+                  autoRefundOnCancel: boolean | null;
+                  minimumCancellationHours: number | null;
+                  flexPassEnabled: boolean | null;
+                  flexPassPrice: number | null;
+                  flexPassRevenueSharePercent: number | null;
+                  flexPassRulesJson?: unknown;
+                  protectionAddons?: unknown;
                   createdAt: string;
                   updatedAt: string;
                 })[];
@@ -317,6 +328,17 @@ export interface paths {
             fullPrice?: number;
             isActive?: boolean;
             requiresApproval?: boolean;
+            cancellationWindowHours?: number;
+            lateCancellationFee?: number;
+            noShowFee?: number;
+            allowPartialRefunds?: boolean;
+            autoRefundOnCancel?: boolean;
+            minimumCancellationHours?: number;
+            flexPassEnabled?: boolean;
+            flexPassPrice?: number;
+            flexPassRevenueSharePercent?: number;
+            flexPassRulesJson?: unknown;
+            protectionAddons?: unknown;
           };
         };
       };
@@ -341,6 +363,17 @@ export interface paths {
                 fullPrice: number | null;
                 isActive: boolean | null;
                 requiresApproval: boolean | null;
+                cancellationWindowHours: number | null;
+                lateCancellationFee: number | null;
+                noShowFee: number | null;
+                allowPartialRefunds: boolean | null;
+                autoRefundOnCancel: boolean | null;
+                minimumCancellationHours: number | null;
+                flexPassEnabled: boolean | null;
+                flexPassPrice: number | null;
+                flexPassRevenueSharePercent: number | null;
+                flexPassRulesJson?: unknown;
+                protectionAddons?: unknown;
                 createdAt: string;
                 updatedAt: string;
               };
@@ -397,6 +430,17 @@ export interface paths {
                   fullPrice: number | null;
                   isActive: boolean | null;
                   requiresApproval: boolean | null;
+                  cancellationWindowHours: number | null;
+                  lateCancellationFee: number | null;
+                  noShowFee: number | null;
+                  allowPartialRefunds: boolean | null;
+                  autoRefundOnCancel: boolean | null;
+                  minimumCancellationHours: number | null;
+                  flexPassEnabled: boolean | null;
+                  flexPassPrice: number | null;
+                  flexPassRevenueSharePercent: number | null;
+                  flexPassRulesJson?: unknown;
+                  protectionAddons?: unknown;
                   createdAt: string;
                   updatedAt: string;
                 })[];
@@ -435,6 +479,17 @@ export interface paths {
                 fullPrice: number | null;
                 isActive: boolean | null;
                 requiresApproval: boolean | null;
+                cancellationWindowHours: number | null;
+                lateCancellationFee: number | null;
+                noShowFee: number | null;
+                allowPartialRefunds: boolean | null;
+                autoRefundOnCancel: boolean | null;
+                minimumCancellationHours: number | null;
+                flexPassEnabled: boolean | null;
+                flexPassPrice: number | null;
+                flexPassRevenueSharePercent: number | null;
+                flexPassRulesJson?: unknown;
+                protectionAddons?: unknown;
                 createdAt: string;
                 updatedAt: string;
               };
@@ -472,6 +527,17 @@ export interface paths {
             fullPrice?: number;
             isActive?: boolean;
             requiresApproval?: boolean;
+            cancellationWindowHours?: number;
+            lateCancellationFee?: number;
+            noShowFee?: number;
+            allowPartialRefunds?: boolean;
+            autoRefundOnCancel?: boolean;
+            minimumCancellationHours?: number;
+            flexPassEnabled?: boolean;
+            flexPassPrice?: number;
+            flexPassRevenueSharePercent?: number;
+            flexPassRulesJson?: unknown;
+            protectionAddons?: unknown;
           };
         };
       };
@@ -496,6 +562,17 @@ export interface paths {
                 fullPrice: number | null;
                 isActive: boolean | null;
                 requiresApproval: boolean | null;
+                cancellationWindowHours: number | null;
+                lateCancellationFee: number | null;
+                noShowFee: number | null;
+                allowPartialRefunds: boolean | null;
+                autoRefundOnCancel: boolean | null;
+                minimumCancellationHours: number | null;
+                flexPassEnabled: boolean | null;
+                flexPassPrice: number | null;
+                flexPassRevenueSharePercent: number | null;
+                flexPassRulesJson?: unknown;
+                protectionAddons?: unknown;
                 createdAt: string;
                 updatedAt: string;
               };
@@ -930,6 +1007,17 @@ export interface components {
       fullPrice: number | null;
       isActive: boolean | null;
       requiresApproval: boolean | null;
+      cancellationWindowHours: number | null;
+      lateCancellationFee: number | null;
+      noShowFee: number | null;
+      allowPartialRefunds: boolean | null;
+      autoRefundOnCancel: boolean | null;
+      minimumCancellationHours: number | null;
+      flexPassEnabled: boolean | null;
+      flexPassPrice: number | null;
+      flexPassRevenueSharePercent: number | null;
+      flexPassRulesJson?: unknown;
+      protectionAddons?: unknown;
       createdAt: string;
       updatedAt: string;
     };
@@ -945,6 +1033,17 @@ export interface components {
       fullPrice?: number;
       isActive?: boolean;
       requiresApproval?: boolean;
+      cancellationWindowHours?: number;
+      lateCancellationFee?: number;
+      noShowFee?: number;
+      allowPartialRefunds?: boolean;
+      autoRefundOnCancel?: boolean;
+      minimumCancellationHours?: number;
+      flexPassEnabled?: boolean;
+      flexPassPrice?: number;
+      flexPassRevenueSharePercent?: number;
+      flexPassRulesJson?: unknown;
+      protectionAddons?: unknown;
     };
     /** @description User entity */
     User: {

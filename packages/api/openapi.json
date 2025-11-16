@@ -241,6 +241,48 @@
             "type": "boolean",
             "nullable": true
           },
+          "cancellationWindowHours": {
+            "type": "number",
+            "nullable": true
+          },
+          "lateCancellationFee": {
+            "type": "number",
+            "nullable": true
+          },
+          "noShowFee": {
+            "type": "number",
+            "nullable": true
+          },
+          "allowPartialRefunds": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "autoRefundOnCancel": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "minimumCancellationHours": {
+            "type": "number",
+            "nullable": true
+          },
+          "flexPassEnabled": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "flexPassPrice": {
+            "type": "number",
+            "nullable": true
+          },
+          "flexPassRevenueSharePercent": {
+            "type": "number",
+            "nullable": true
+          },
+          "flexPassRulesJson": {
+            "nullable": true
+          },
+          "protectionAddons": {
+            "nullable": true
+          },
           "createdAt": {
             "type": "string"
           },
@@ -260,6 +302,15 @@
           "fullPrice",
           "isActive",
           "requiresApproval",
+          "cancellationWindowHours",
+          "lateCancellationFee",
+          "noShowFee",
+          "allowPartialRefunds",
+          "autoRefundOnCancel",
+          "minimumCancellationHours",
+          "flexPassEnabled",
+          "flexPassPrice",
+          "flexPassRevenueSharePercent",
           "createdAt",
           "updatedAt"
         ],
@@ -307,6 +358,48 @@
           },
           "requiresApproval": {
             "type": "boolean"
+          },
+          "cancellationWindowHours": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 168
+          },
+          "lateCancellationFee": {
+            "type": "number",
+            "minimum": 0
+          },
+          "noShowFee": {
+            "type": "number",
+            "minimum": 0
+          },
+          "allowPartialRefunds": {
+            "type": "boolean"
+          },
+          "autoRefundOnCancel": {
+            "type": "boolean"
+          },
+          "minimumCancellationHours": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 48
+          },
+          "flexPassEnabled": {
+            "type": "boolean"
+          },
+          "flexPassPrice": {
+            "type": "number",
+            "minimum": 0
+          },
+          "flexPassRevenueSharePercent": {
+            "type": "number",
+            "minimum": 60,
+            "maximum": 70
+          },
+          "flexPassRulesJson": {
+            "nullable": true
+          },
+          "protectionAddons": {
+            "nullable": true
           }
         },
         "required": [
@@ -1111,6 +1204,48 @@
                             "type": "boolean",
                             "nullable": true
                           },
+                          "cancellationWindowHours": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "lateCancellationFee": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "noShowFee": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "allowPartialRefunds": {
+                            "type": "boolean",
+                            "nullable": true
+                          },
+                          "autoRefundOnCancel": {
+                            "type": "boolean",
+                            "nullable": true
+                          },
+                          "minimumCancellationHours": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "flexPassEnabled": {
+                            "type": "boolean",
+                            "nullable": true
+                          },
+                          "flexPassPrice": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "flexPassRevenueSharePercent": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "flexPassRulesJson": {
+                            "nullable": true
+                          },
+                          "protectionAddons": {
+                            "nullable": true
+                          },
                           "createdAt": {
                             "type": "string"
                           },
@@ -1130,6 +1265,15 @@
                           "fullPrice",
                           "isActive",
                           "requiresApproval",
+                          "cancellationWindowHours",
+                          "lateCancellationFee",
+                          "noShowFee",
+                          "allowPartialRefunds",
+                          "autoRefundOnCancel",
+                          "minimumCancellationHours",
+                          "flexPassEnabled",
+                          "flexPassPrice",
+                          "flexPassRevenueSharePercent",
                           "createdAt",
                           "updatedAt"
                         ],
@@ -1223,6 +1367,48 @@
                   },
                   "requiresApproval": {
                     "type": "boolean"
+                  },
+                  "cancellationWindowHours": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 168
+                  },
+                  "lateCancellationFee": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "noShowFee": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "allowPartialRefunds": {
+                    "type": "boolean"
+                  },
+                  "autoRefundOnCancel": {
+                    "type": "boolean"
+                  },
+                  "minimumCancellationHours": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 48
+                  },
+                  "flexPassEnabled": {
+                    "type": "boolean"
+                  },
+                  "flexPassPrice": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "flexPassRevenueSharePercent": {
+                    "type": "number",
+                    "minimum": 60,
+                    "maximum": 70
+                  },
+                  "flexPassRulesJson": {
+                    "nullable": true
+                  },
+                  "protectionAddons": {
+                    "nullable": true
                   }
                 },
                 "required": [
@@ -1290,6 +1476,48 @@
                           "type": "boolean",
                           "nullable": true
                         },
+                        "cancellationWindowHours": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "lateCancellationFee": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "noShowFee": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "allowPartialRefunds": {
+                          "type": "boolean",
+                          "nullable": true
+                        },
+                        "autoRefundOnCancel": {
+                          "type": "boolean",
+                          "nullable": true
+                        },
+                        "minimumCancellationHours": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "flexPassEnabled": {
+                          "type": "boolean",
+                          "nullable": true
+                        },
+                        "flexPassPrice": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "flexPassRevenueSharePercent": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "flexPassRulesJson": {
+                          "nullable": true
+                        },
+                        "protectionAddons": {
+                          "nullable": true
+                        },
                         "createdAt": {
                           "type": "string"
                         },
@@ -1309,6 +1537,15 @@
                         "fullPrice",
                         "isActive",
                         "requiresApproval",
+                        "cancellationWindowHours",
+                        "lateCancellationFee",
+                        "noShowFee",
+                        "allowPartialRefunds",
+                        "autoRefundOnCancel",
+                        "minimumCancellationHours",
+                        "flexPassEnabled",
+                        "flexPassPrice",
+                        "flexPassRevenueSharePercent",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -1444,6 +1681,48 @@
                             "type": "boolean",
                             "nullable": true
                           },
+                          "cancellationWindowHours": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "lateCancellationFee": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "noShowFee": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "allowPartialRefunds": {
+                            "type": "boolean",
+                            "nullable": true
+                          },
+                          "autoRefundOnCancel": {
+                            "type": "boolean",
+                            "nullable": true
+                          },
+                          "minimumCancellationHours": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "flexPassEnabled": {
+                            "type": "boolean",
+                            "nullable": true
+                          },
+                          "flexPassPrice": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "flexPassRevenueSharePercent": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "flexPassRulesJson": {
+                            "nullable": true
+                          },
+                          "protectionAddons": {
+                            "nullable": true
+                          },
                           "createdAt": {
                             "type": "string"
                           },
@@ -1463,6 +1742,15 @@
                           "fullPrice",
                           "isActive",
                           "requiresApproval",
+                          "cancellationWindowHours",
+                          "lateCancellationFee",
+                          "noShowFee",
+                          "allowPartialRefunds",
+                          "autoRefundOnCancel",
+                          "minimumCancellationHours",
+                          "flexPassEnabled",
+                          "flexPassPrice",
+                          "flexPassRevenueSharePercent",
                           "createdAt",
                           "updatedAt"
                         ],
@@ -1552,6 +1840,48 @@
                           "type": "boolean",
                           "nullable": true
                         },
+                        "cancellationWindowHours": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "lateCancellationFee": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "noShowFee": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "allowPartialRefunds": {
+                          "type": "boolean",
+                          "nullable": true
+                        },
+                        "autoRefundOnCancel": {
+                          "type": "boolean",
+                          "nullable": true
+                        },
+                        "minimumCancellationHours": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "flexPassEnabled": {
+                          "type": "boolean",
+                          "nullable": true
+                        },
+                        "flexPassPrice": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "flexPassRevenueSharePercent": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "flexPassRulesJson": {
+                          "nullable": true
+                        },
+                        "protectionAddons": {
+                          "nullable": true
+                        },
                         "createdAt": {
                           "type": "string"
                         },
@@ -1571,6 +1901,15 @@
                         "fullPrice",
                         "isActive",
                         "requiresApproval",
+                        "cancellationWindowHours",
+                        "lateCancellationFee",
+                        "noShowFee",
+                        "allowPartialRefunds",
+                        "autoRefundOnCancel",
+                        "minimumCancellationHours",
+                        "flexPassEnabled",
+                        "flexPassPrice",
+                        "flexPassRevenueSharePercent",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -1674,6 +2013,48 @@
                   },
                   "requiresApproval": {
                     "type": "boolean"
+                  },
+                  "cancellationWindowHours": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 168
+                  },
+                  "lateCancellationFee": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "noShowFee": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "allowPartialRefunds": {
+                    "type": "boolean"
+                  },
+                  "autoRefundOnCancel": {
+                    "type": "boolean"
+                  },
+                  "minimumCancellationHours": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 48
+                  },
+                  "flexPassEnabled": {
+                    "type": "boolean"
+                  },
+                  "flexPassPrice": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "flexPassRevenueSharePercent": {
+                    "type": "number",
+                    "minimum": 60,
+                    "maximum": 70
+                  },
+                  "flexPassRulesJson": {
+                    "nullable": true
+                  },
+                  "protectionAddons": {
+                    "nullable": true
                   }
                 },
                 "description": "Service creation payload"
@@ -1736,6 +2117,48 @@
                           "type": "boolean",
                           "nullable": true
                         },
+                        "cancellationWindowHours": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "lateCancellationFee": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "noShowFee": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "allowPartialRefunds": {
+                          "type": "boolean",
+                          "nullable": true
+                        },
+                        "autoRefundOnCancel": {
+                          "type": "boolean",
+                          "nullable": true
+                        },
+                        "minimumCancellationHours": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "flexPassEnabled": {
+                          "type": "boolean",
+                          "nullable": true
+                        },
+                        "flexPassPrice": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "flexPassRevenueSharePercent": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "flexPassRulesJson": {
+                          "nullable": true
+                        },
+                        "protectionAddons": {
+                          "nullable": true
+                        },
                         "createdAt": {
                           "type": "string"
                         },
@@ -1755,6 +2178,15 @@
                         "fullPrice",
                         "isActive",
                         "requiresApproval",
+                        "cancellationWindowHours",
+                        "lateCancellationFee",
+                        "noShowFee",
+                        "allowPartialRefunds",
+                        "autoRefundOnCancel",
+                        "minimumCancellationHours",
+                        "flexPassEnabled",
+                        "flexPassPrice",
+                        "flexPassRevenueSharePercent",
                         "createdAt",
                         "updatedAt"
                       ],

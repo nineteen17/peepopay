@@ -29,6 +29,20 @@ const serviceSchema = z.object({
   fullPrice: z.number().nullable(),
   isActive: z.boolean().nullable(),
   requiresApproval: z.boolean().nullable(),
+  // Refund Policy Fields
+  cancellationWindowHours: z.number().nullable(),
+  lateCancellationFee: z.number().nullable(),
+  noShowFee: z.number().nullable(),
+  allowPartialRefunds: z.boolean().nullable(),
+  autoRefundOnCancel: z.boolean().nullable(),
+  minimumCancellationHours: z.number().nullable(),
+  // Flex Pass Fields
+  flexPassEnabled: z.boolean().nullable(),
+  flexPassPrice: z.number().nullable(),
+  flexPassRevenueSharePercent: z.number().nullable(),
+  flexPassRulesJson: z.any().nullable(),
+  // Protection Addons
+  protectionAddons: z.any().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 }).openapi({ description: 'Service entity' });
@@ -43,6 +57,20 @@ const newServiceSchema = z.object({
   fullPrice: z.number().min(100).optional(),
   isActive: z.boolean().optional(),
   requiresApproval: z.boolean().optional(),
+  // Refund Policy Fields
+  cancellationWindowHours: z.number().min(1).max(168).optional(),
+  lateCancellationFee: z.number().min(0).optional(),
+  noShowFee: z.number().min(0).optional(),
+  allowPartialRefunds: z.boolean().optional(),
+  autoRefundOnCancel: z.boolean().optional(),
+  minimumCancellationHours: z.number().min(0).max(48).optional(),
+  // Flex Pass Fields
+  flexPassEnabled: z.boolean().optional(),
+  flexPassPrice: z.number().min(0).optional(),
+  flexPassRevenueSharePercent: z.number().min(60).max(70).optional(),
+  flexPassRulesJson: z.any().optional(),
+  // Protection Addons
+  protectionAddons: z.any().optional(),
 }).openapi({ description: 'Service creation payload' });
 
 const bookingSchema = z.object({

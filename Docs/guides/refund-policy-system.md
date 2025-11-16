@@ -1,6 +1,6 @@
 # Refund Policy System
 
-> **Implementation Status**: Phase 6 Complete (Flex Pass Payment Processing)
+> **Implementation Status**: Phase 7 Complete (Dispute Handling)
 >
 > **Last Updated**: 2025-11-15
 
@@ -16,7 +16,8 @@ The PeepoPay refund policy system provides flexible, fair, and automated refund 
 - ✅ **Refund Calculation Engine** - Automated refund calculations with timezone support (Phase 4)
 - ✅ **Flex Pass Override** - Optional cancellation protection for full refunds (Phase 4)
 - ✅ **No-Show Detection** - Automatic detection and fee charging with hourly cron job (Phase 5)
-- ⏳ **Dispute Resolution** - Built-in dispute handling workflow (Phase 7)
+- ✅ **Flex Pass Payment Processing** - Revenue split and payment integration (Phase 6)
+- ✅ **Dispute Resolution** - Built-in dispute handling workflow (Phase 7)
 - ⏳ **Industry Defaults** - Pre-configured policies for different verticals (Phase 9)
 
 ## Architecture
@@ -568,18 +569,425 @@ if (booking.flexPassPurchased) {
 - Updated total price display
 - Payment element charges combined amount
 
-### 7. Dispute Resolution (Phase 7 - Coming Soon)
+### 7. Dispute Handling (Phase 7 ✅)
 
-Built-in workflow for handling customer disputes:
+**Files**:
+- `packages/api/src/modules/bookings/bookings.service.ts` - Dispute service methods
+- `packages/api/src/modules/bookings/bookings.controller.ts` - REST API endpoints
+- `packages/api/src/lib/queue.ts` - Dispute notification queues
+- `packages/api/src/modules/bookings/disputes.test.ts` - Comprehensive test suite
 
-**Dispute Lifecycle**:
+Built-in workflow for handling customer disputes about cancellations, no-shows, and refund amounts.
+
+#### How It Works
+
+1. **Customer Creates Dispute**: Customer disputes a cancelled or no-show booking
+2. **Validation**: System validates booking state and dispute eligibility
+3. **Status Update**: Booking marked as `disputeStatus: 'pending'`
+4. **Notifications Sent**: Both customer and provider receive dispute creation emails
+5. **Admin Resolution**: Admin reviews and resolves in favor of customer or provider
+6. **Refund Processing**: If customer wins, full deposit is automatically refunded via Stripe
+7. **Final Notifications**: Both parties notified of resolution outcome
+
+**Dispute State Machine**:
 ```
-none → pending → resolved_customer | resolved_provider
+none → pending → resolved_customer (with refund)
+                → resolved_provider (no refund)
 ```
 
-**Endpoints**:
-- `POST /api/bookings/:id/dispute` - Create dispute
-- `POST /api/bookings/:id/dispute/resolve` - Resolve dispute (admin only)
+**Dispute Eligibility**:
+- Booking must be `cancelled` or `no_show` status
+- Cannot dispute if already has `pending` or resolved dispute
+- No time limit - disputes can be created anytime after cancellation/no-show
+
+#### API Endpoints
+
+**File**: `packages/api/src/modules/bookings/bookings.controller.ts`
+
+##### Create Dispute (Customer)
+
+**Endpoint**: `POST /api/bookings/:id/dispute`
+
+**Authentication**: Required (customer must be booking owner)
+
+**Request Body**:
+```typescript
+{
+  reason: string; // Required, must be non-empty
+}
+```
+
+**Example Request**:
+```typescript
+await axios.post('/api/bookings/booking123/dispute', {
+  reason: 'I was charged a cancellation fee but I cancelled 48 hours in advance'
+}, {
+  headers: { Authorization: `Bearer ${token}` }
+});
+```
+
+**Response**:
+```typescript
+{
+  booking: {
+    id: 'booking123',
+    status: 'cancelled',
+    disputeStatus: 'pending',
+    disputeReason: 'I was charged a cancellation fee but...',
+    disputeCreatedAt: '2025-11-15T10:30:00Z',
+    // ... other booking fields
+  }
+}
+```
+
+**Validation Errors**:
+- `400 Dispute reason is required` - Reason is missing or empty
+- `404 Booking not found` - Invalid booking ID
+- `400 Only cancelled or no-show bookings can be disputed` - Invalid booking state
+- `400 This booking already has a pending dispute` - Duplicate dispute attempt
+- `400 This booking dispute has already been resolved` - Already resolved
+
+##### Resolve Dispute (Admin)
+
+**Endpoint**: `POST /api/bookings/:id/dispute/resolve`
+
+**Authentication**: Required (admin only - TODO: admin middleware)
+
+**Request Body**:
+```typescript
+{
+  resolution: 'customer' | 'provider'; // Required
+  notes: string; // Optional admin notes
+}
+```
+
+**Example Request**:
+```typescript
+// Resolve in customer's favor (issues full refund)
+await axios.post('/api/bookings/booking123/dispute/resolve', {
+  resolution: 'customer',
+  notes: 'Customer provided proof they cancelled within window'
+}, {
+  headers: { Authorization: `Bearer ${adminToken}` }
+});
+
+// Resolve in provider's favor (no refund)
+await axios.post('/api/bookings/booking123/dispute/resolve', {
+  resolution: 'provider',
+  notes: 'Provider policy clearly stated, customer cancelled too late'
+}, {
+  headers: { Authorization: `Bearer ${adminToken}` }
+});
+```
+
+**Response (Customer Wins)**:
+```typescript
+{
+  booking: {
+    id: 'booking123',
+    status: 'refunded', // Changed from 'cancelled'
+    disputeStatus: 'resolved_customer',
+    disputeResolvedAt: '2025-11-15T14:00:00Z',
+    refundAmount: 10000, // Full deposit refunded
+    refundReason: 'dispute_resolved_customer',
+    // ... other booking fields
+  }
+}
+```
+
+**Response (Provider Wins)**:
+```typescript
+{
+  booking: {
+    id: 'booking123',
+    status: 'cancelled', // Unchanged
+    disputeStatus: 'resolved_provider',
+    disputeResolvedAt: '2025-11-15T14:00:00Z',
+    // No refund fields updated
+  }
+}
+```
+
+**Validation Errors**:
+- `400 Resolution must be either "customer" or "provider"` - Invalid resolution value
+- `404 Booking not found` - Invalid booking ID
+- `400 No pending dispute found for this booking` - No active dispute
+- `500 Failed to process refund for dispute resolution` - Stripe refund error
+
+#### Service Methods
+
+**File**: `packages/api/src/modules/bookings/bookings.service.ts`
+
+##### createDispute()
+
+```typescript
+async createDispute(
+  bookingId: string,
+  userId: string,
+  reason: string
+): Promise<Booking>
+```
+
+**Purpose**: Create a dispute for a cancelled or no-show booking
+
+**Process**:
+1. Fetch booking with service and provider details
+2. Validate booking state (must be `cancelled` or `no_show`)
+3. Check for existing disputes (prevent duplicates)
+4. Update booking with dispute info:
+   - `disputeStatus: 'pending'`
+   - `disputeReason: reason`
+   - `disputeCreatedAt: new Date()`
+5. Publish dispute creation notifications via queue
+6. Return updated booking
+
+**Error Handling**:
+- Throws `AppError(404)` if booking not found
+- Throws `AppError(400)` if booking not cancelled/no-show
+- Throws `AppError(400)` if dispute already pending or resolved
+- Gracefully handles email sending failures (logs error but doesn't fail)
+
+##### resolveDispute()
+
+```typescript
+async resolveDispute(
+  bookingId: string,
+  adminUserId: string,
+  resolution: 'customer' | 'provider',
+  notes: string
+): Promise<Booking>
+```
+
+**Purpose**: Resolve a pending dispute (admin only)
+
+**Process**:
+1. Fetch booking with service and provider details
+2. Validate pending dispute exists
+3. If `resolution === 'customer'`:
+   - Process full refund via Stripe (`createRefund()`)
+   - Update booking status to `refunded`
+   - Set `refundAmount` to full deposit
+   - Set `refundReason` to `'dispute_resolved_customer'`
+4. If `resolution === 'provider'`:
+   - No refund processed
+   - Booking status unchanged
+5. Update booking:
+   - `disputeStatus: 'resolved_customer' | 'resolved_provider'`
+   - `disputeResolvedAt: new Date()`
+6. Publish dispute resolution notifications via queue
+7. Return updated booking
+
+**Error Handling**:
+- Throws `AppError(404)` if booking not found
+- Throws `AppError(400)` if no pending dispute
+- Throws `AppError(500)` if Stripe refund fails
+- Gracefully handles email sending failures (logs error but doesn't fail)
+
+#### Queue Integration
+
+**File**: `packages/api/src/lib/queue.ts`
+
+##### Dispute Created Queue
+
+**Queue**: `DISPUTE_CREATED`
+
+**Publisher**:
+```typescript
+await queueService.publishDisputeCreated(
+  bookingId: string,
+  customerEmail: string,
+  providerEmail: string,
+  details: {
+    serviceName: string;
+    bookingDate: Date;
+    disputeReason: string;
+    customerName: string;
+    providerName: string;
+  }
+);
+```
+
+**Message Format**:
+```typescript
+{
+  bookingId: 'booking123',
+  customerEmail: 'customer@example.com',
+  providerEmail: 'provider@example.com',
+  details: {
+    serviceName: 'Plumbing Service',
+    bookingDate: '2025-12-01T10:00:00Z',
+    disputeReason: 'Unfair cancellation fee',
+    customerName: 'John Doe',
+    providerName: 'Jane Smith'
+  },
+  createdAt: '2025-11-15T10:30:00Z'
+}
+```
+
+**Consumer**: Email worker (to be implemented)
+
+##### Dispute Resolved Queue
+
+**Queue**: `DISPUTE_RESOLVED`
+
+**Publisher**:
+```typescript
+await queueService.publishDisputeResolved(
+  bookingId: string,
+  customerEmail: string,
+  providerEmail: string,
+  details: {
+    serviceName: string;
+    bookingDate: Date;
+    resolution: 'customer' | 'provider';
+    resolutionNotes: string;
+    refundAmount: number;
+    customerName: string;
+    providerName: string;
+  }
+);
+```
+
+**Message Format**:
+```typescript
+{
+  bookingId: 'booking123',
+  customerEmail: 'customer@example.com',
+  providerEmail: 'provider@example.com',
+  details: {
+    serviceName: 'Plumbing Service',
+    bookingDate: '2025-12-01T10:00:00Z',
+    resolution: 'customer',
+    resolutionNotes: 'Customer was right',
+    refundAmount: 10000, // $100.00 (0 if provider wins)
+    customerName: 'John Doe',
+    providerName: 'Jane Smith'
+  },
+  createdAt: '2025-11-15T14:00:00Z'
+}
+```
+
+**Consumer**: Email worker (to be implemented)
+
+#### Test Coverage
+
+**File**: `packages/api/src/modules/bookings/disputes.test.ts`
+
+- **createDispute()**: 7 tests
+  - ✅ Creates dispute for cancelled booking
+  - ✅ Creates dispute for no-show booking
+  - ✅ Throws error if booking not found
+  - ✅ Throws error if booking not cancelled/no-show
+  - ✅ Throws error if dispute already pending
+  - ✅ Throws error if dispute already resolved
+  - ✅ Continues if email sending fails (graceful degradation)
+- **resolveDispute()**: 7 tests
+  - ✅ Resolves in customer favor with full refund
+  - ✅ Resolves in provider favor without refund
+  - ✅ Throws error if booking not found
+  - ✅ Throws error if no pending dispute
+  - ✅ Throws error if refund processing fails
+  - ✅ Handles no-show dispute resolved for customer
+  - ✅ Continues if email sending fails (graceful degradation)
+
+**Total**: 14 tests, all passing ✅
+
+#### Example Scenarios
+
+**Scenario 1**: Customer disputes unfair late cancellation fee
+```typescript
+// Customer cancelled 30 hours before appointment
+// Service policy: 24-hour cancellation window, $25 late fee
+// Customer was charged $25 fee
+
+// 1. Customer creates dispute
+await axios.post('/api/bookings/booking123/dispute', {
+  reason: 'I cancelled 30 hours in advance but was still charged a late fee'
+});
+
+// 2. Admin reviews
+// - Booking time: Dec 1, 10:00 AM
+// - Cancellation time: Nov 29, 4:00 PM (30 hours before)
+// - Policy: 24-hour window
+// - Customer is correct - should have gotten free cancellation
+
+// 3. Admin resolves in customer favor
+await axios.post('/api/bookings/booking123/dispute/resolve', {
+  resolution: 'customer',
+  notes: 'Customer cancelled 30 hours in advance, within the 24-hour window'
+});
+
+// Result:
+// - Status changed to 'refunded'
+// - Full $100 deposit refunded via Stripe
+// - Both parties notified via email
+```
+
+**Scenario 2**: Customer disputes no-show fee (provider wins)
+```typescript
+// Customer marked as no-show
+// Customer claims they arrived but provider was closed
+
+// 1. Customer creates dispute
+await axios.post('/api/bookings/booking456/dispute', {
+  reason: 'I showed up but the shop was closed. This is unfair.'
+});
+
+// 2. Admin reviews
+// - Provider provided security camera footage showing shop was open
+// - Customer never arrived
+// - No-show fee is justified
+
+// 3. Admin resolves in provider favor
+await axios.post('/api/bookings/booking456/dispute/resolve', {
+  resolution: 'provider',
+  notes: 'Provider provided evidence that shop was open. Customer did not arrive.'
+});
+
+// Result:
+// - Status remains 'no_show'
+// - No refund processed
+// - Provider keeps the no-show fee
+// - Both parties notified via email
+```
+
+#### Database Fields Used
+
+**Bookings Table**:
+- `disputeStatus`: `'none' | 'pending' | 'resolved_customer' | 'resolved_provider'`
+- `disputeReason`: `TEXT` - Customer's explanation for the dispute
+- `disputeCreatedAt`: `TIMESTAMP` - When dispute was created
+- `disputeResolvedAt`: `TIMESTAMP` - When dispute was resolved
+
+**Status Changes**:
+- Create dispute: No status change (remains `cancelled` or `no_show`)
+- Resolve for customer: Status → `refunded`, `refundAmount` updated
+- Resolve for provider: No status change
+
+#### Email Templates (Phase 7.2 ✅)
+
+**Files**:
+- `packages/api/src/emails/dispute-created.tsx` - Dual-purpose template for customer and provider
+- `packages/api/src/emails/dispute-resolved.tsx` - Dual-purpose template for customer and provider
+- `packages/api/src/worker.ts` - Worker handlers for dispute notification queues
+
+Both email templates support `recipientType: 'customer' | 'provider'` to customize content for each recipient.
+
+**Worker Handlers**:
+- `handleDisputeCreated()` - Sends dispute creation emails to both customer and provider
+- `handleDisputeResolved()` - Sends resolution emails to both parties with outcome details
+
+**Queue Consumers** (registered in worker startup):
+- `DISPUTE_CREATED` queue - Processes dispute creation notifications
+- `DISPUTE_RESOLVED` queue - Processes dispute resolution notifications
+
+**Next Steps (Pending)**:
+
+**Admin Dashboard** (Phase 8):
+- View all pending disputes
+- Filter by booking status, date range, service
+- One-click resolution with notes field
+- Dispute history and analytics
 
 ## Database Schema
 
@@ -739,13 +1147,15 @@ npm test -- policySnapshot.test.ts
 npm test -- refundCalculator.test.ts
 npm test -- noShowDetection.test.ts
 npm test -- flexPass.test.ts
+npm test -- disputes.test.ts
 ```
 
-**Total: 89 tests, 100% passing** ✅
+**Total: 103 tests, 100% passing** ✅
 - Policy Snapshot: 21 tests
 - Refund Calculator: 34 tests
 - No-Show Detection: 17 tests
 - Flex Pass Payment Processing: 17 tests
+- Dispute Handling: 14 tests
 
 ## Critical Implementation Rules
 
@@ -792,12 +1202,12 @@ const bookingInUserTz = formatInTimeZone(
 - [x] **Phase 4**: Refund calculation engine (Week 3-4) ✅
 - [x] **Phase 5**: No-show detection with hourly worker (Week 4) ✅
 - [x] **Phase 6**: Flex pass payment processing (Week 5) ✅
-- [ ] **Phase 7**: Dispute handling (Week 5)
+- [x] **Phase 7**: Dispute handling (Week 5) ✅
 - [ ] **Phase 8**: Dashboard UI & Widget integration (Week 6)
 - [ ] **Phase 9**: Industry defaults (Week 6)
 - [ ] **Phase 10**: Protection addons (Week 7)
 
-**Next Phase**: Phase 7 (Dispute Handling) or Phase 8 (Dashboard UI & Widget integration)
+**Next Phase**: Phase 8 (Dashboard UI & Widget integration)
 
 ## Related Documentation
 
@@ -818,5 +1228,5 @@ For questions or issues with the refund policy system:
 ---
 
 **Last Updated**: 2025-11-15
-**Status**: Phase 4 Complete
-**Next Phase**: No-Show Detection System (Phase 5)
+**Status**: Phase 7 Complete (Dispute Handling)
+**Next Phase**: Dashboard UI & Widget Integration (Phase 8)

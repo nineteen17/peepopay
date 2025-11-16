@@ -27,6 +27,8 @@ import {
   PasswordChangedEmail,
   NoShowNotificationEmail,
   RefundNotificationEmail,
+  DisputeCreatedEmail,
+  DisputeResolvedEmail,
 } from './emails/index.js';
 import type { Job } from 'bull';
 
@@ -405,6 +407,156 @@ async function handleRefundNotification(message: any) {
   }
 }
 
+// Dispute created handler
+async function handleDisputeCreated(message: any) {
+  const { bookingId, customerEmail, providerEmail, details } = message;
+
+  console.log(`⚖️  Processing dispute created notification for ${bookingId}`);
+
+  try {
+    const bookingDate = details.bookingDate
+      ? new Date(details.bookingDate).toLocaleString()
+      : undefined;
+
+    // Send dispute created email to customer
+    const customerHtml = render(
+      DisputeCreatedEmail({
+        bookingId,
+        serviceName: details.serviceName,
+        bookingDate: bookingDate || 'N/A',
+        disputeReason: details.disputeReason,
+        recipientName: details.customerName,
+        recipientEmail: customerEmail,
+        recipientType: 'customer',
+        customerName: details.customerName,
+        providerName: details.providerName,
+      })
+    );
+
+    const customerResult = await resend.emails.send({
+      from: `${config.email.fromName} <${config.email.fromEmail}>`,
+      to: customerEmail,
+      subject: `Dispute Received - ${details.serviceName}`,
+      html: customerHtml,
+    });
+
+    if (customerResult.error) {
+      throw new Error(`Customer email: ${customerResult.error.message}`);
+    }
+
+    console.log(`✅ Customer dispute created email sent (ID: ${customerResult.data?.id})`);
+
+    // Send dispute created email to provider
+    const providerHtml = render(
+      DisputeCreatedEmail({
+        bookingId,
+        serviceName: details.serviceName,
+        bookingDate: bookingDate || 'N/A',
+        disputeReason: details.disputeReason,
+        recipientName: details.providerName,
+        recipientEmail: providerEmail,
+        recipientType: 'provider',
+        customerName: details.customerName,
+        providerName: details.providerName,
+      })
+    );
+
+    const providerResult = await resend.emails.send({
+      from: `${config.email.fromName} <${config.email.fromEmail}>`,
+      to: providerEmail,
+      subject: `Customer Dispute Filed - ${details.serviceName}`,
+      html: providerHtml,
+    });
+
+    if (providerResult.error) {
+      throw new Error(`Provider email: ${providerResult.error.message}`);
+    }
+
+    console.log(`✅ Provider dispute created email sent (ID: ${providerResult.data?.id})`);
+    console.log(`✅ All dispute created emails sent for ${bookingId}`);
+  } catch (error) {
+    console.error(`❌ Failed to send dispute created notification for ${bookingId}:`, error);
+    throw error; // Will be retried or sent to dead letter queue
+  }
+}
+
+// Dispute resolved handler
+async function handleDisputeResolved(message: any) {
+  const { bookingId, customerEmail, providerEmail, details } = message;
+
+  console.log(`⚖️  Processing dispute resolved notification for ${bookingId}`);
+
+  try {
+    const bookingDate = details.bookingDate
+      ? new Date(details.bookingDate).toLocaleString()
+      : undefined;
+
+    // Send dispute resolved email to customer
+    const customerHtml = render(
+      DisputeResolvedEmail({
+        bookingId,
+        serviceName: details.serviceName,
+        bookingDate: bookingDate || 'N/A',
+        resolution: details.resolution,
+        resolutionNotes: details.resolutionNotes,
+        refundAmount: details.refundAmount,
+        recipientName: details.customerName,
+        recipientEmail: customerEmail,
+        recipientType: 'customer',
+        customerName: details.customerName,
+        providerName: details.providerName,
+      })
+    );
+
+    const customerResult = await resend.emails.send({
+      from: `${config.email.fromName} <${config.email.fromEmail}>`,
+      to: customerEmail,
+      subject: `Dispute Resolved - ${details.serviceName}`,
+      html: customerHtml,
+    });
+
+    if (customerResult.error) {
+      throw new Error(`Customer email: ${customerResult.error.message}`);
+    }
+
+    console.log(`✅ Customer dispute resolved email sent (ID: ${customerResult.data?.id})`);
+
+    // Send dispute resolved email to provider
+    const providerHtml = render(
+      DisputeResolvedEmail({
+        bookingId,
+        serviceName: details.serviceName,
+        bookingDate: bookingDate || 'N/A',
+        resolution: details.resolution,
+        resolutionNotes: details.resolutionNotes,
+        refundAmount: details.refundAmount,
+        recipientName: details.providerName,
+        recipientEmail: providerEmail,
+        recipientType: 'provider',
+        customerName: details.customerName,
+        providerName: details.providerName,
+      })
+    );
+
+    const providerResult = await resend.emails.send({
+      from: `${config.email.fromName} <${config.email.fromEmail}>`,
+      to: providerEmail,
+      subject: `Dispute Resolved - ${details.serviceName}`,
+      html: providerHtml,
+    });
+
+    if (providerResult.error) {
+      throw new Error(`Provider email: ${providerResult.error.message}`);
+    }
+
+    console.log(`✅ Provider dispute resolved email sent (ID: ${providerResult.data?.id})`);
+    console.log(`✅ All dispute resolved emails sent for ${bookingId}`);
+  } catch (error) {
+    console.error(`❌ Failed to send dispute resolved notification for ${bookingId}:`, error);
+    throw error; // Will be retried or sent to dead letter queue
+  }
+}
+
 // Booking reminder handler (Bull queue processor)
 async function handleBookingReminder(job: Job) {
   const { bookingId, customerEmail, customerName, serviceName, bookingDate, duration, price } = job.data;
@@ -654,6 +806,8 @@ async function startWorker() {
     await consumeQueue(QUEUES.BOOKING_COMPLETIONS, handleBookingCompletion, { prefetch: 3 });
     await consumeQueue(QUEUES.NO_SHOW_NOTIFICATIONS, handleNoShowNotification, { prefetch: 3 });
     await consumeQueue(QUEUES.REFUND_NOTIFICATIONS, handleRefundNotification, { prefetch: 5 });
+    await consumeQueue(QUEUES.DISPUTE_CREATED, handleDisputeCreated, { prefetch: 3 });
+    await consumeQueue(QUEUES.DISPUTE_RESOLVED, handleDisputeResolved, { prefetch: 3 });
     await consumeQueue(QUEUES.PAYMENT_FAILURES, handlePaymentFailure, { prefetch: 5 });
     await consumeQueue(QUEUES.AUTH_EMAILS, handleAuthEmail, { prefetch: 5 });
     await consumeQueue(QUEUES.STRIPE_WEBHOOKS, handleStripeWebhook, { prefetch: 10 });

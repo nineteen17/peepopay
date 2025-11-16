@@ -433,23 +433,33 @@
   - [x] Queue notifications
   - [x] Return result
 
-### 7.2 Email Notifications for Disputes
+### 7.2 Email Notifications for Disputes ✅
 
-- [ ] **Create**: `packages/api/src/emails/dispute-created.tsx` (Deferred to email worker implementation)
-  - [ ] Provider version: "Customer disputed booking #X"
-  - [ ] Customer version: "Your dispute has been received"
+- [x] **Create**: `packages/api/src/emails/dispute-created.tsx`
+  - [x] Dual-purpose template with `recipientType: 'customer' | 'provider'`
+  - [x] Provider version: "Customer disputed booking #X"
+  - [x] Customer version: "Your dispute has been received"
+  - [x] Shows booking details, dispute reason, and next steps
+  - [x] Customized content for each recipient type
 
-- [ ] **Create**: `packages/api/src/emails/dispute-resolved.tsx` (Deferred to email worker implementation)
-  - [ ] Show outcome
-  - [ ] Show refund details if applicable
-  - [ ] Explain reasoning
+- [x] **Create**: `packages/api/src/emails/dispute-resolved.tsx`
+  - [x] Dual-purpose template with `recipientType: 'customer' | 'provider'`
+  - [x] Shows resolution outcome (customer won vs provider won)
+  - [x] Shows refund details if applicable
+  - [x] Includes resolution notes from admin
+  - [x] Different messaging based on who won
 
 - [x] **Update Queue**: `packages/api/src/lib/queue.ts`
   - [x] Add `publishDisputeCreated()`
   - [x] Add `publishDisputeResolved()`
   - [x] Add DISPUTE_CREATED and DISPUTE_RESOLVED queues
 
-- [ ] **Update Worker**: Handle dispute emails (Deferred to email worker implementation)
+- [x] **Update Worker**: `packages/api/src/worker.ts`
+  - [x] Import dispute email templates
+  - [x] Add `handleDisputeCreated()` handler
+  - [x] Add `handleDisputeResolved()` handler
+  - [x] Register both queue consumers in worker startup
+  - [x] Send emails to both customer and provider for each event
 
 ### 7.3 Testing
 
@@ -478,39 +488,66 @@
 
 ---
 
-## Phase 8: Dashboard - Policy Configuration UI (Week 6)
+## Phase 8: Dashboard - Policy Configuration UI (Week 6) ✅ COMPLETED
 
-### 8.1 Create Policy Settings Page
+### 8.1 Create Policy Settings Page ✅
 
-- [ ] **Create**: `packages/dashboard/src/app/settings/policies/page.tsx`
-  - [ ] Fetch current service policy
-  - [ ] Section: Cancellation Window (hours input)
-  - [ ] Section: Late Cancellation Fee (dollar input, converts to cents)
-  - [ ] Section: No-Show Fee (dollar input, converts to cents)
-  - [ ] Section: Refund Settings
-    - [ ] Toggle: Allow partial refunds
-    - [ ] Toggle: Automatic refunds
-  - [ ] Section: Cancellation Protection (Flex Pass)
-    - [ ] Toggle: Enable
-    - [ ] Input: Price (dollar input, converts to cents)
-    - [ ] Slider: Platform revenue share (60-70%)
-    - [ ] Preview: "Customer pays $X, you receive $Y"
-  - [ ] Save button with validation
-  - [ ] Show policy preview for customers
+- [x] **Updated**: `packages/dashboard/src/app/settings/page.tsx`
+  - [x] Added "Cancellation Policies" tab to settings page
+  - [x] Fetch services and allow selection if multiple exist
+  - [x] Section: Free Cancellation Window
+    - [x] Cancellation Window (hours input)
+    - [x] Minimum Cancellation Notice (hours input)
+  - [x] Section: Cancellation Fees
+    - [x] Late Cancellation Fee (dollar input, converts to cents)
+    - [x] No-Show Fee (dollar input, converts to cents)
+  - [x] Section: Refund Settings
+    - [x] Toggle: Allow partial refunds
+    - [x] Toggle: Automatic refunds
+  - [x] Section: Cancellation Protection (Flex Pass)
+    - [x] Toggle: Enable
+    - [x] Input: Price (dollar input, converts to cents)
+    - [x] Input: Platform revenue share (60-70%)
+    - [x] Preview: Shows platform/provider split
+    - [x] Explanation of how flex pass works
+  - [x] Policy Preview section showing customer-facing view
+  - [x] Save button with validation and error handling
+  - [x] Success/error messages
 
-- [ ] **Add Navigation**
-  - [ ] Add "Cancellation Policies" to settings sidebar
-  - [ ] Update dashboard layout
+- [x] **Add Navigation**
+  - [x] Added "Cancellation Policies" tab with Shield icon
+  - [x] Tab integrated into existing settings page
 
-### 8.2 Create API Endpoint for Policy Update
+### 8.2 API Endpoint for Policy Update ✅
 
-- [ ] **Create Route**: `PUT /api/services/:id/policy`
-  - [ ] Add to `packages/api/src/modules/services/services.controller.ts`
-  - [ ] Accept all policy fields
-  - [ ] Validate values (fees must be positive, window hours reasonable)
-  - [ ] Update service record
-  - [ ] Invalidate cache if using Redis
-  - [ ] Return updated service
+- [x] **Existing Route**: `PUT /api/services/:id`
+  - [x] Already exists in `packages/api/src/modules/services/services.controller.ts`
+  - [x] Accepts all policy fields via `insertServiceSchema.partial()`
+  - [x] Validates values using Zod schema
+  - [x] Updates service record via `servicesService.updateService()`
+  - [x] Invalidates cache for user's services
+  - [x] Returns updated service
+
+### 8.3 Type System Updates ✅
+
+- [x] **Updated**: `packages/api/src/openapi/generator.ts`
+  - [x] Added all policy fields to `serviceSchema`
+  - [x] Added all policy fields to `newServiceSchema`
+  - [x] Included proper validation constraints
+- [x] **Regenerated**: OpenAPI spec and TypeScript types
+  - [x] Policy fields now available in dashboard types
+  - [x] TypeScript compilation successful
+
+**Git Commits**:
+- feat(dashboard): Implement Phase 8 - Policy Configuration UI
+- feat(api): Update OpenAPI spec with policy fields
+
+**Notes**:
+- Full policy configuration UI integrated into existing settings page
+- Dollar amounts automatically converted to cents for API
+- Live preview shows customer-facing policy details
+- Service selector shown when user has multiple services
+- All TypeScript types synchronized and compilation successful
 
 ---
 
