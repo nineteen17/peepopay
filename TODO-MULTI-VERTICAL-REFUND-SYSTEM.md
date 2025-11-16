@@ -605,7 +605,7 @@
 
 ---
 
-## Phase 10: Protection Addons Architecture (Week 7)
+## Phase 10: Protection Addons Architecture (Week 7) (redundant no longer needed)
 
 ### 10.1 Create Addon System
 
@@ -716,41 +716,76 @@
 
 ---
 
-## Phase 12: Testing & Verification (Week 8)
+## Phase 12: Testing & Verification (Week 8) ✅
 
-### 12.1 Unit Tests - Critical Functions
+### 12.1 Unit Tests - Critical Functions ✅
 
-- [ ] **Test**: `packages/api/src/lib/refundCalculator.ts`
-  - [ ] Test within free cancellation window → full refund
-  - [ ] Test outside window → partial refund with fee
-  - [ ] Test no-refund policy → zero refund
-  - [ ] Test flex pass override → full refund
-  - [ ] Test addon override → follow addon rules
-  - [ ] Test edge cases (same-day booking, past booking)
+**All tests passing: 103 tests across 5 test files**
 
-- [ ] **Test**: `packages/api/src/lib/policySnapshot.ts`
-  - [ ] Test snapshot creation includes all fields
-  - [ ] Test snapshot parsing returns valid object
-  - [ ] Test validation catches invalid snapshots
+- [x] **Test**: `packages/api/src/lib/refundCalculator.ts` (34 tests ✅)
+  - [x] Test within free cancellation window → full refund
+  - [x] Test outside window → partial refund with fee
+  - [x] Test no-refund policy → zero refund
+  - [x] Test flex pass override → full refund
+  - [x] Test addon override → not needed (Phase 10 skipped)
+  - [x] Test edge cases (same-day booking, past booking)
+  - [x] Additional coverage: No-show fee calculation, Flex Pass revenue split, policy summary generation
 
-- [ ] **Test**: `packages/api/src/lib/noShowDetection.ts`
-  - [ ] Test finds bookings past grace period
-  - [ ] Test marks booking as no-show
-  - [ ] Test charges correct fee from policy
+- [x] **Test**: `packages/api/src/lib/policySnapshot.ts` (21 tests ✅)
+  - [x] Test snapshot creation includes all fields
+  - [x] Test snapshot parsing returns valid object
+  - [x] Test validation catches invalid snapshots
+  - [x] Additional coverage: String vs object snapshots, summary generation, validation errors
+
+- [x] **Test**: `packages/api/src/lib/noShowDetection.ts` (17 tests ✅)
+  - [x] Test finds bookings past grace period
+  - [x] Test marks booking as no-show
+  - [x] Test charges correct fee from policy
+  - [x] Additional coverage: Bulk processing, error handling, notification sending, provider vs system marking
+
+- [x] **Test**: `packages/api/src/lib/flexPass.ts` (17 tests ✅)
+  - [x] Test Flex Pass pricing calculations
+  - [x] Test revenue split calculations
+  - [x] Test validation and edge cases
+
+- [x] **Test**: `packages/api/src/modules/bookings/disputes.test.ts` (14 tests ✅)
+  - [x] Test dispute creation for cancelled bookings
+  - [x] Test dispute creation for no-show bookings
+  - [x] Test resolution in favor of customer
+  - [x] Test resolution in favor of provider
+  - [x] Test refund processing on resolution
+
+**Test Execution:**
+```bash
+npm test -- --run
+
+✅ Test Files  5 passed (5)
+✅ Tests  103 passed (103)
+   Duration  1.51s
+```
 
 ### 12.2 Manual Testing Checklist
 
+**Ready for User Testing** - Core functionality verified via unit tests
+
+Recommended testing workflow:
 - [ ] Create test account for each vertical type
-- [ ] Configure different policies for each
+- [ ] Configure different policies for each service
 - [ ] Test booking creation with policy snapshot
-- [ ] Test cancellation within window → full refund
-- [ ] Test cancellation outside window → partial refund + fee
-- [ ] Test flex pass purchase and use → full refund
+- [ ] Test cancellation within window → verify full refund
+- [ ] Test cancellation outside window → verify partial refund + fee breakdown email
+- [ ] Test flex pass purchase and use → verify full refund
 - [ ] Test no-show detection (manual and automatic)
-- [ ] Test dispute creation and resolution
-- [ ] Verify all emails send correctly
+- [ ] Test dispute creation and resolution workflow
+- [ ] Verify all emails send correctly with policy details
 - [ ] Test dashboard policy configuration UI
 - [ ] Verify widget shows correct terminology (generic)
+
+**Notes:**
+- All critical business logic has comprehensive unit test coverage
+- Error handling tested for edge cases
+- Email templates tested via preview props
+- Manual testing recommended before production deployment
 
 ---
 
