@@ -99,21 +99,20 @@ peepopay/
 
 3. **Configure environment variables**
 
-   Update `.env` files with your actual credentials:
+   Each package has its own `.env` file. Copy the examples and update with your credentials:
 
    ```bash
-   # Root .env
-   cp .env.example .env
-
-   # API .env
+   # API environment
    cp packages/api/.env.example packages/api/.env
 
-   # Dashboard .env
+   # Dashboard environment
    cp packages/dashboard/.env.example packages/dashboard/.env
 
-   # Widget .env
+   # Widget environment
    cp packages/widget/.env.example packages/widget/.env
    ```
+
+   Then edit each `.env` file with your actual credentials (Stripe keys, database URL, etc.)
 
 4. **Start development servers**
    ```bash
@@ -362,16 +361,20 @@ Access Traefik dashboard at http://localhost:8080
 
 ## 🔐 Environment Variables
 
-### Required Variables
+Each package has its own `.env` file for environment-specific configuration:
+
+- **`packages/api/.env`** - Backend API and worker configuration
+- **`packages/dashboard/.env`** - Dashboard frontend configuration
+- **`packages/widget/.env`** - Widget frontend configuration
+
+### API Environment (`packages/api/.env`)
 
 ```env
 # Database
 DATABASE_URL=postgresql://user:pass@localhost:5432/peepopay
 
-# Redis
+# Redis & RabbitMQ
 REDIS_URL=redis://localhost:6379
-
-# RabbitMQ
 RABBITMQ_URL=amqp://localhost:5672
 
 # Stripe
@@ -394,7 +397,21 @@ GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 ```
 
-See `.env.example` files for complete configuration options.
+### Dashboard Environment (`packages/dashboard/.env`)
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:4000
+NEXT_PUBLIC_WIDGET_URL=http://localhost:5173
+```
+
+### Widget Environment (`packages/widget/.env`)
+
+```env
+VITE_API_URL=http://localhost:4000
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+```
+
+See each package's `.env.example` file for complete configuration options.
 
 ## 🧪 Testing
 
