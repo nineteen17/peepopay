@@ -69,7 +69,6 @@ peepopay/
 │   └── widget/        # React/Vite booking widget
 ├── docker/            # Docker and Traefik configuration
 ├── Docs/              # Comprehensive documentation
-├── scripts/           # Development and deployment scripts
 └── docker-compose.yml # Docker orchestration
 ```
 
@@ -91,10 +90,9 @@ peepopay/
    cd peepopay
    ```
 
-2. **Run the setup script**
+2. **Install dependencies**
    ```bash
-   chmod +x scripts/setup.sh
-   ./scripts/setup.sh
+   npm install
    ```
 
 3. **Configure environment variables**
@@ -114,15 +112,28 @@ peepopay/
 
    Then edit each `.env` file with your actual credentials (Stripe keys, database URL, etc.)
 
-4. **Start development servers**
+4. **Start Docker infrastructure**
+   ```bash
+   docker-compose -f docker-compose.dev.yml up -d
+   ```
+
+5. **Initialize the database**
+   ```bash
+   cd packages/api
+   npm run db:push
+   cd ../..
+   ```
+
+6. **Start development servers**
    ```bash
    npm run dev
    ```
 
-5. **Access the applications**
+7. **Access the applications**
    - Dashboard: http://localhost:3000
    - API: http://localhost:4000
    - Widget: http://localhost:5173
+   - RabbitMQ Management: http://localhost:15672 (admin/admin)
 
 ## 🛠️ Development
 
