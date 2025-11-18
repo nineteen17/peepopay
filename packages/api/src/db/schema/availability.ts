@@ -1,14 +1,14 @@
-import { pgTable, text, timestamp, uuid, time, integer, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, time, integer, jsonb } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
-import { users } from './users.js';
+import { user } from './users.js';
 
 export const dayOfWeekEnum = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
 
 export const availability = pgTable('availability', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
 
   // Day and time
   dayOfWeek: text('day_of_week', { enum: dayOfWeekEnum }).notNull(),
@@ -29,8 +29,8 @@ export const availability = pgTable('availability', {
 
 // For blocking specific dates/times
 export const blockedSlots = pgTable('blocked_slots', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
 
   // Blocked time
   startTime: timestamp('start_time').notNull(),
@@ -46,16 +46,16 @@ export const blockedSlots = pgTable('blocked_slots', {
 
 // Relations
 export const availabilityRelations = relations(availability, ({ one }) => ({
-  user: one(users, {
+  user: one(user, {
     fields: [availability.userId],
-    references: [users.id],
+    references: [user.id],
   }),
 }));
 
 export const blockedSlotsRelations = relations(blockedSlots, ({ one }) => ({
-  user: one(users, {
+  user: one(user, {
     fields: [blockedSlots.userId],
-    references: [users.id],
+    references: [user.id],
   }),
 }));
 

@@ -29,7 +29,7 @@ export default function SignupPage() {
 
     try {
       await api.signup(formData);
-      router.push('/dashboard');
+      router.push(`/auth/verify-email?email=${encodeURIComponent(formData.email)}`);
     } catch (err: any) {
       setError(err.message || 'Failed to create account. Please try again.');
     } finally {

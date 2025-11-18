@@ -420,6 +420,9 @@
             "type": "string",
             "format": "email"
           },
+          "emailVerified": {
+            "type": "boolean"
+          },
           "name": {
             "type": "string"
           },
@@ -467,6 +470,7 @@
         "required": [
           "id",
           "email",
+          "emailVerified",
           "name",
           "slug",
           "stripeAccountId",
@@ -549,6 +553,9 @@
                           "type": "string",
                           "format": "email"
                         },
+                        "emailVerified": {
+                          "type": "boolean"
+                        },
                         "name": {
                           "type": "string"
                         },
@@ -596,6 +603,7 @@
                       "required": [
                         "id",
                         "email",
+                        "emailVerified",
                         "name",
                         "slug",
                         "stripeAccountId",
@@ -710,6 +718,9 @@
                           "type": "string",
                           "format": "email"
                         },
+                        "emailVerified": {
+                          "type": "boolean"
+                        },
                         "name": {
                           "type": "string"
                         },
@@ -757,6 +768,7 @@
                       "required": [
                         "id",
                         "email",
+                        "emailVerified",
                         "name",
                         "slug",
                         "stripeAccountId",
@@ -881,6 +893,9 @@
                           "type": "string",
                           "format": "email"
                         },
+                        "emailVerified": {
+                          "type": "boolean"
+                        },
                         "name": {
                           "type": "string"
                         },
@@ -928,6 +943,7 @@
                       "required": [
                         "id",
                         "email",
+                        "emailVerified",
                         "name",
                         "slug",
                         "stripeAccountId",
@@ -1041,6 +1057,9 @@
                           "type": "string",
                           "format": "email"
                         },
+                        "emailVerified": {
+                          "type": "boolean"
+                        },
                         "name": {
                           "type": "string"
                         },
@@ -1088,6 +1107,7 @@
                       "required": [
                         "id",
                         "email",
+                        "emailVerified",
                         "name",
                         "slug",
                         "stripeAccountId",

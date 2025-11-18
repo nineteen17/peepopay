@@ -1,15 +1,15 @@
-import { pgTable, text, timestamp, boolean, uuid, integer, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, integer, jsonb } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
-import { users } from './users.js';
+import { user } from './users.js';
 import { bookings } from './bookings.js';
 
 export const depositTypeEnum = ['percentage', 'fixed'] as const;
 
 export const services = pgTable('services', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
 
   // Service details
   name: text('name').notNull(),
@@ -50,9 +50,9 @@ export const services = pgTable('services', {
 
 // Relations
 export const servicesRelations = relations(services, ({ one, many }) => ({
-  user: one(users, {
+  user: one(user, {
     fields: [services.userId],
-    references: [users.id],
+    references: [user.id],
   }),
   bookings: many(bookings),
 }));

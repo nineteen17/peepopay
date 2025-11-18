@@ -31,9 +31,7 @@ export class UsersService {
       throw new AppError(404, 'User not found');
     }
 
-    // Remove sensitive data
-    const { passwordHash, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    return user;
   }
 
   /**
@@ -77,8 +75,7 @@ export class UsersService {
       .where(eq(users.id, id))
       .returning();
 
-    const { passwordHash, ...userWithoutPassword } = updated;
-    return userWithoutPassword;
+    return updated;
   }
 
   /**

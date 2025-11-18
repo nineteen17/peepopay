@@ -5,7 +5,7 @@
  * Any manual changes will be overwritten on the next sync.
  *
  * Source: packages/api/openapi.json
- * Generated: 2025-11-16T03:43:32.865Z
+ * Generated: 2025-11-18T01:49:40.862Z
  *
  * To update this file, run:
  *   npm run sync-types
@@ -43,6 +43,7 @@ export interface paths {
                 id: string;
                 /** Format: email */
                 email: string;
+                emailVerified: boolean;
                 name: string;
                 slug: string;
                 stripeAccountId: string | null;
@@ -98,6 +99,7 @@ export interface paths {
                 id: string;
                 /** Format: email */
                 email: string;
+                emailVerified: boolean;
                 name: string;
                 slug: string;
                 stripeAccountId: string | null;
@@ -166,6 +168,7 @@ export interface paths {
                 id: string;
                 /** Format: email */
                 email: string;
+                emailVerified: boolean;
                 name: string;
                 slug: string;
                 stripeAccountId: string | null;
@@ -219,6 +222,7 @@ export interface paths {
                 id: string;
                 /** Format: email */
                 email: string;
+                emailVerified: boolean;
                 name: string;
                 slug: string;
                 stripeAccountId: string | null;
@@ -1061,6 +1065,7 @@ export interface components {
       id: string;
       /** Format: email */
       email: string;
+      emailVerified: boolean;
       name: string;
       slug: string;
       stripeAccountId: string | null;

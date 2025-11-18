@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { fromNodeHeaders } from 'better-auth/node';
 import { auth } from '../lib/auth.js';
 
 export interface AuthRequest extends Request {
@@ -20,7 +21,7 @@ export async function requireAuth(
 ): Promise<void> {
   try {
     const session = await auth.api.getSession({
-      headers: req.headers as any,
+      headers: fromNodeHeaders(req.headers),
     });
 
     if (!session) {
@@ -53,7 +54,7 @@ export async function optionalAuth(
 ): Promise<void> {
   try {
     const session = await auth.api.getSession({
-      headers: req.headers as any,
+      headers: fromNodeHeaders(req.headers),
     });
 
     if (session) {

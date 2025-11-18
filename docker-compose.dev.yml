@@ -72,7 +72,7 @@ services:
     container_name: peepopay-api-dev
     restart: unless-stopped
     env_file:
-      - .env
+      - ./packages/api/.env
     environment:
       - NODE_ENV=development
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/peepopay
@@ -105,7 +105,7 @@ services:
     container_name: peepopay-worker-dev
     restart: unless-stopped
     env_file:
-      - .env
+      - ./packages/api/.env
     environment:
       - NODE_ENV=development
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/peepopay
@@ -135,7 +135,7 @@ services:
     container_name: peepopay-dashboard-dev
     restart: unless-stopped
     env_file:
-      - .env
+      - ./packages/dashboard/.env
     environment:
       - NODE_ENV=development
       - NEXT_PUBLIC_API_URL=http://localhost:4000
@@ -160,7 +160,7 @@ services:
     container_name: peepopay-widget-dev
     restart: unless-stopped
     env_file:
-      - .env
+      - ./packages/widget/.env
     environment:
       - NODE_ENV=development
       - VITE_API_URL=http://localhost:4000

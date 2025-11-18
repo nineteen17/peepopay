@@ -1,8 +1,8 @@
-import { pgTable, text, timestamp, uuid, integer, jsonb, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, integer, jsonb, boolean } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
-import { users } from './users.js';
+import { user } from './users.js';
 import { services } from './services.js';
 
 export const bookingStatusEnum = ['pending', 'confirmed', 'cancelled', 'completed', 'refunded', 'no_show'] as const;
@@ -10,9 +10,9 @@ export const depositStatusEnum = ['pending', 'paid', 'failed', 'refunded'] as co
 export const disputeStatusEnum = ['none', 'pending', 'resolved_customer', 'resolved_provider'] as const;
 
 export const bookings = pgTable('bookings', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  serviceId: uuid('service_id').notNull().references(() => services.id, { onDelete: 'cascade' }),
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  serviceId: text('service_id').notNull().references(() => services.id, { onDelete: 'cascade' }),
 
   // Customer details
   customerName: text('customer_name').notNull(),
@@ -67,9 +67,9 @@ export const bookings = pgTable('bookings', {
 
 // Relations
 export const bookingsRelations = relations(bookings, ({ one }) => ({
-  user: one(users, {
+  user: one(user, {
     fields: [bookings.userId],
-    references: [users.id],
+    references: [user.id],
   }),
   service: one(services, {
     fields: [bookings.serviceId],

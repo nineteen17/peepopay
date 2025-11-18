@@ -5,6 +5,7 @@ import compression from 'compression';
 import swaggerUi from 'swagger-ui-express';
 import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
+import { toNodeHandler } from 'better-auth/node';
 import { config } from './config/index.js';
 import { auth } from './lib/auth.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
@@ -14,7 +15,6 @@ import { initBull, closeBull } from './lib/bull.js';
 import { performHealthCheck } from './lib/health.js';
 
 // Module Controllers
-import authController from './modules/auth/auth.controller.js';
 import servicesController from './modules/services/services.controller.js';
 import bookingsController from './modules/bookings/bookings.controller.js';
 import usersController from './modules/users/users.controller.js';
@@ -47,6 +47,11 @@ app.use(cors({
 
 // Compression
 app.use(compression());
+
+// Better Auth routes (must be BEFORE express.json() to avoid hanging)
+app.all('/api/auth/*', (req, res) => {
+  return toNodeHandler(auth)(req, res);
+});
 
 // Body parsing - EXCEPT for webhooks (Stripe needs raw body)
 app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
@@ -90,7 +95,6 @@ if (existsSync(openapiPath)) {
 }
 
 // API routes (module controllers)
-app.use('/api/auth', authController);
 app.use('/api/services', servicesController);
 app.use('/api/bookings', bookingsController);
 app.use('/api/users', usersController);

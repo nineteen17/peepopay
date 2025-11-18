@@ -70,7 +70,7 @@ services:
     container_name: peepopay-api
     restart: unless-stopped
     env_file:
-      - .env
+      - ./packages/api/.env
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/peepopay
@@ -102,7 +102,7 @@ services:
     container_name: peepopay-worker
     restart: unless-stopped
     env_file:
-      - .env
+      - ./packages/api/.env
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/peepopay
@@ -128,7 +128,7 @@ services:
       dockerfile: Dockerfile
     container_name: peepopay-migrate
     env_file:
-      - .env
+      - ./packages/api/.env
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/peepopay
@@ -151,7 +151,7 @@ services:
     container_name: peepopay-dashboard
     restart: unless-stopped
     env_file:
-      - .env
+      - ./packages/dashboard/.env
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:4000
     ports:

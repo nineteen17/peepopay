@@ -106,6 +106,7 @@ const newBookingSchema = z.object({
 const userSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email(),
+  emailVerified: z.boolean(),
   name: z.string(),
   slug: z.string(),
   stripeAccountId: z.string().nullable(),

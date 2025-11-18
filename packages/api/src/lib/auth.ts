@@ -1,6 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { db } from '../db/index.js';
+import { db, schema } from '../db/index.js';
 import { config } from '../config/index.js';
 import {
   sendWelcomeEmail,
@@ -9,45 +9,51 @@ import {
 } from './email.js';
 
 export const auth: any = betterAuth({
+  baseURL: (process.env.BETTER_AUTH_URL || 'http://localhost:4000') + '/api/auth',
+  secret: process.env.BETTER_AUTH_SECRET || 'fallback-secret-please-set-env-var',
+  trustedOrigins: [
+    process.env.DASHBOARD_URL || 'http://localhost:3000',
+    process.env.WIDGET_URL || 'http://localhost:8080',
+  ],
   database: drizzleAdapter(db, {
     provider: 'pg',
+    schema: {
+      user: schema.user,
+      session: schema.session,
+      account: schema.account,
+      verification: schema.verification,
+    },
   }),
 
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: config.nodeEnv === 'production',
+    requireEmailVerification: true,
     sendResetPassword: async ({ user, url }) => {
-      console.log(`📧 Sending password reset email to ${user.email}`);
       try {
-        await sendPasswordResetEmail(
-          user.email,
-          user.name || 'User',
-          url,
-          undefined,
-          '1 hour'
-        );
+        await sendPasswordResetEmail(user.email, user.name, url);
+        console.log(`📧 Password reset email sent to ${user.email}`);
       } catch (error) {
-        console.error('Failed to send password reset email:', error);
-        throw error;
+        console.error(`❌ Failed to send password reset email to ${user.email}:`, error);
+        // Don't throw - allow the password reset to continue even if email fails
       }
     },
   },
 
   emailVerification: {
     sendOnSignUp: true,
+    autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url }) => {
-      console.log(`📧 Sending verification email to ${user.email}`);
       try {
-        await sendVerificationEmail(
-          user.email,
-          user.name || 'User',
-          url,
-          undefined,
-          '24 hours'
-        );
+        // Update the callback URL to redirect to the dashboard instead of the API
+        const urlObj = new URL(url);
+        urlObj.searchParams.set('callbackURL', process.env.DASHBOARD_URL || 'http://localhost:3000');
+        const modifiedUrl = urlObj.toString();
+
+        await sendVerificationEmail(user.email, user.name, modifiedUrl);
+        console.log(`📧 Verification email sent to ${user.email}`);
       } catch (error) {
-        console.error('Failed to send verification email:', error);
-        throw error;
+        console.error(`❌ Failed to send verification email to ${user.email}:`, error);
+        // Don't throw - allow signup to continue even if email fails
       }
     },
   },
@@ -67,6 +73,7 @@ export const auth: any = betterAuth({
 
   advanced: {
     cookiePrefix: 'peepopay',
+    generateId: () => crypto.randomUUID(), // Use UUID format for all IDs
   },
 
   // Additional user fields configuration
@@ -95,15 +102,12 @@ export const auth: any = betterAuth({
         handler: async (context) => {
           if (context.body?.user) {
             const user = context.body.user;
-            console.log(`📧 Sending welcome email to ${user.email}`);
             try {
-              // Send welcome email (non-blocking)
-              sendWelcomeEmail(user.email, user.name || 'User').catch((error) =>
-                console.error('Failed to send welcome email:', error)
-              );
+              await sendWelcomeEmail(user.email, user.name);
+              console.log(`📧 Welcome email sent to ${user.email}`);
             } catch (error) {
-              // Don't block signup if welcome email fails
-              console.error('Error in welcome email hook:', error);
+              console.error(`❌ Failed to send welcome email to ${user.email}:`, error);
+              // Don't throw - allow signup to continue even if email fails
             }
           }
         },

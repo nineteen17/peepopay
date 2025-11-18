@@ -46,7 +46,7 @@ export class ApiClient {
 
   // Auth
   async login(email: string, password: string): Promise<{ user: User }> {
-    return this.request<{ user: User }>('/api/auth/login', {
+    return this.request<{ user: User }>('/api/auth/sign-in/email', {
       method: 'POST',
       data: { email, password },
     });
@@ -60,14 +60,21 @@ export class ApiClient {
     industryVertical?: string;
     industrySubcategory?: string;
   }): Promise<{ user: User }> {
-    return this.request<{ user: User }>('/api/auth/register', {
+    return this.request<{ user: User }>('/api/auth/sign-up/email', {
       method: 'POST',
       data,
     });
   }
 
   async logout(): Promise<void> {
-    return this.request<void>('/api/auth/logout', { method: 'POST' });
+    return this.request<void>('/api/auth/sign-out', { method: 'POST' });
+  }
+
+  async resendVerificationEmail(email: string): Promise<{ status: boolean }> {
+    return this.request<{ status: boolean }>('/api/auth/send-verification-email', {
+      method: 'POST',
+      data: { email },
+    });
   }
 
   // User
