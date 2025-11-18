@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/queries';
 import { DashboardNav } from '@/components/dashboard-nav';
 import { VerificationBanner } from '@/components/verification-banner';
+import { OnboardingBanner } from '@/components/onboarding-banner';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: authData, isLoading, error } = useAuth();
@@ -16,13 +17,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.push('/auth/login');
     }
   }, [user, isLoading, error, router]);
-
-  useEffect(() => {
-    // Check if user needs to complete Stripe onboarding
-    if (user && !user.stripeOnboardingComplete && !window.location.pathname.includes('/onboarding')) {
-      router.push('/onboarding');
-    }
-  }, [user, router]);
 
   if (isLoading) {
     return (
@@ -40,6 +34,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen bg-muted/50">
       <DashboardNav />
       {user && !user.emailVerified && <VerificationBanner userEmail={user.email} />}
+      {user && user.emailVerified && !user.stripeOnboardingComplete && <OnboardingBanner userName={user.name} />}
       <main className="container mx-auto px-4 py-8">{children}</main>
     </div>
   );
